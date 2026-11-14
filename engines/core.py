@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -59,9 +60,17 @@ def sha256_file(p: Path) -> str:
     return h.hexdigest()
 
 
+_AUDIT_LOCK = threading.Lock()
+
+
 def audit(case: Path, actor: str, action: str, inputs: Any = None, result: Any = None) -> dict:
     """Append one event to audit.log. Each line carries the hash of the previous
     line, so any later edit or deletion breaks the chain and is detectable."""
+    with _AUDIT_LOCK:
+        return _audit(case, actor, action, inputs, result)
+
+
+def _audit(case: Path, actor: str, action: str, inputs: Any, result: Any) -> dict:
     log = case / "audit.log"
     prev = "0" * 64
     if log.exists():
