@@ -1,0 +1,14 @@
+id: passport
+label: Passport or national ID
+family: identity
+keywords: [passport, passeport, national identity, identity card, nationality, date of birth, mrz, p<]
+fields:
+  full_name:      {type: name,   role: person, labels: [name, surname, given names, full name]}
+  date_of_birth:  {type: date,   role: dob,    labels: [date of birth, birth date, dob]}
+  document_number: {type: id,     role: id_number, labels: [passport no, passport number, document no, id number]}
+  nationality:    {type: text,   labels: [nationality]}
+  issue_date:     {type: date,   labels: [date of issue, issued]}
+  expiry_date:    {type: date,   role: expiry, labels: [date of expiry, expiry, expires, valid until]}
+  address:        {type: address,role: address, labels: [address, residence]}
+mrz: true
+checks: [mrz_check_digits, mrz_vs_printed, expiry, date_logic]

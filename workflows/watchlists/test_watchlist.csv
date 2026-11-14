@@ -1,0 +1,3 @@
+"id","schema","name","aliases","birth_date","countries","sanctions","dataset"
+"TEST-0001","Person","Viktor Andreyevich Morozkin","Viktor Morozkin;V. A. Morozkin","1971-04-02","xx","Fictional test entry for the demo watchlist","demo_watchlist"
+"TEST-0002","Organization","Northgate Shell Holdings Ltd","Northgate Holdings","","xx","Fictional test entry for the demo watchlist","demo_watchlist"

@@ -1,0 +1,10 @@
+id: form_1099
+label: 1099 income form
+family: income
+keywords: [1099, nonemployee compensation, payer's tin, recipient's tin, miscellaneous income]
+fields:
+  recipient_name: {type: name,  role: person,   labels: [recipient's name, recipient name]}
+  payer_name:     {type: org,   role: employer, labels: [payer's name, payer name]}
+  compensation:   {type: money, role: annual_income, labels: [nonemployee compensation, compensation, other income]}
+  tax_year:       {type: text,  labels: [tax year, for calendar year]}
+checks: []

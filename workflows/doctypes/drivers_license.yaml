@@ -1,0 +1,12 @@
+id: drivers_license
+label: Driver's license
+family: identity
+keywords: [driver license, drivers license, driver's license, dl no, class, endorsements]
+fields:
+  full_name:      {type: name,    role: person, labels: [name, full name]}
+  date_of_birth:  {type: date,    role: dob, labels: [dob, date of birth]}
+  license_number: {type: id,      role: id_number, labels: [dl, license no, lic no, dl no]}
+  address:        {type: address, role: address, labels: [address]}
+  expiry_date:    {type: date,    role: expiry, labels: [exp, expires, expiry]}
+  issue_date:     {type: date,    labels: [iss, issued]}
+checks: [expiry, date_logic]

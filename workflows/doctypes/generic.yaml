@@ -1,0 +1,12 @@
+id: generic
+label: Other financial document
+family: other
+keywords: []
+fields:
+  name:    {type: name,    role: person,  labels: [name, customer, client, account holder]}
+  address: {type: address, role: address, labels: [address]}
+  org:     {type: org,     role: org,     labels: [company, bank, from]}
+  date:    {type: date,    role: issue_date, labels: [date]}
+  amount:  {type: money,   labels: [total, amount]}
+  account: {type: account, role: account, labels: [account number, account]}
+checks: [date_logic]

@@ -1,0 +1,15 @@
+id: invoice
+label: Invoice
+family: commerce
+keywords: [invoice, invoice number, bill to, subtotal, tax, total due, remit to]
+fields:
+  vendor:         {type: org,     role: vendor, labels: [from, vendor, seller, remit to]}
+  bill_to:        {type: name,    role: person, labels: [bill to, customer, sold to]}
+  bill_to_address: {type: address, role: address, labels: [billing address]}
+  invoice_number: {type: id,      labels: [invoice number, invoice no, "invoice #"]}
+  invoice_date:   {type: date,    role: issue_date, labels: [invoice date, date]}
+  subtotal:       {type: money,   labels: [subtotal, sub total]}
+  tax:            {type: money,   labels: [tax, sales tax, vat]}
+  total:          {type: money,   role: payment, labels: [total due, total, amount due]}
+  pay_account:    {type: account, role: account, labels: [account number, pay to account]}
+checks: [invoice_math, date_logic]

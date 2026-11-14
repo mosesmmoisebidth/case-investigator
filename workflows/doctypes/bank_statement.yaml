@@ -1,0 +1,18 @@
+id: bank_statement
+label: Bank statement
+family: banking
+keywords: [statement, account statement, bank statement, opening balance, closing balance, beginning balance, ending balance, deposits, withdrawals]
+fields:
+  account_holder:  {type: name,    role: person,  labels: [account holder, account name, customer, name]}
+  holder_address:  {type: address, role: address, labels: [address, mailing address]}
+  bank_name:       {type: org,     role: bank,    labels: [bank, bank name]}
+  account_number:  {type: account, role: account, labels: [account number, account no, acct no, account]}
+  routing_number:  {type: routing, role: routing, labels: [routing number, routing, aba]}
+  period_start:    {type: date,    labels: [statement period, period from, from]}
+  period_end:      {type: date,    role: issue_date, labels: [period to, through, to, statement date]}
+  opening_balance: {type: money,   labels: [opening balance, beginning balance, previous balance, balance forward]}
+  closing_balance: {type: money,   labels: [closing balance, ending balance, new balance]}
+  total_deposits:  {type: money,   labels: [total deposits, deposits and credits, total credits]}
+  total_withdrawals: {type: money, labels: [total withdrawals, withdrawals and debits, total debits]}
+tables: [transactions]
+checks: [running_balance, statement_totals, date_logic]

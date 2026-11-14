@@ -1,0 +1,11 @@
+id: employment_letter
+label: Employment or offer letter
+family: income
+keywords: [offer letter, employment verification, to whom it may concern, annual salary, start date, position]
+fields:
+  employee_name: {type: name,  role: person,   labels: [dear, employee, name]}
+  employer_name: {type: org,   role: employer, labels: [company, employer]}
+  salary:        {type: money, role: annual_income, labels: [annual salary, salary, base salary, compensation]}
+  start_date:    {type: date,  labels: [start date, effective date]}
+  letter_date:   {type: date,  role: issue_date, labels: [date]}
+checks: [date_logic]

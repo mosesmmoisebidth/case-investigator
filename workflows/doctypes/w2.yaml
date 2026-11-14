@@ -1,0 +1,17 @@
+id: w2
+label: W-2 wage statement
+family: income
+keywords: [w-2, wage and tax statement, wages, tips, other compensation, employer identification number]
+fields:
+  employee_name:  {type: name,    role: person,   labels: [employee's name, employee name]}
+  employee_address: {type: address, role: address, labels: [employee's address, employee address]}
+  employer_name:  {type: org,     role: employer, labels: [employer's name, employer name]}
+  ein:            {type: id,      labels: [employer identification number, ein]}
+  wages:          {type: money,   role: annual_income, labels: [wages, tips, other compensation]}
+  federal_tax:    {type: money,   labels: [federal income tax withheld]}
+  ss_wages:       {type: money,   labels: [social security wages]}
+  ss_tax:         {type: money,   labels: [social security tax withheld]}
+  medicare_wages: {type: money,   labels: [medicare wages]}
+  medicare_tax:   {type: money,   labels: [medicare tax withheld]}
+  tax_year:       {type: text,    labels: [tax year]}
+checks: [w2_fica]

@@ -1,0 +1,12 @@
+id: tax_return
+label: Tax return
+family: income
+keywords: [form 1040, individual income tax return, adjusted gross income, taxable income, filing status]
+fields:
+  taxpayer_name: {type: name,    role: person,  labels: [your first name, name]}
+  address:       {type: address, role: address, labels: [home address, address]}
+  total_income:  {type: money,   role: annual_income, labels: [total income]}
+  agi:           {type: money,   labels: [adjusted gross income]}
+  wages:         {type: money,   labels: [wages, salaries, tips]}
+  tax_year:      {type: text,    labels: [tax year]}
+checks: []

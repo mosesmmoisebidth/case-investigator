@@ -1,0 +1,10 @@
+id: card
+label: Payment card
+family: payment
+keywords: [visa, mastercard, debit, credit card, valid thru, card number]
+fields:
+  cardholder:  {type: name,  role: person, labels: [cardholder, name]}
+  card_number: {type: card,  role: card,   labels: [card number]}
+  bank_name:   {type: org,   role: bank,   labels: [bank, issuer]}
+  expiry_date: {type: date,  role: expiry, labels: [valid thru, exp, expiry]}
+checks: [luhn, bin_vs_bank]

@@ -1,0 +1,24 @@
+id: pay_stub
+label: Pay stub
+family: income
+keywords: [pay stub, paystub, earnings statement, payslip, pay slip, net pay, gross pay, pay period]
+fields:
+  employee_name:   {type: name,    role: person,   labels: [employee name, employee, name]}
+  employee_address: {type: address, role: address,  labels: [employee address, address]}
+  employer_name:   {type: org,     role: employer, labels: [employer, company, employer name, paid by]}
+  employer_address: {type: address, role: org_address, labels: [employer address, company address]}
+  pay_date:        {type: date,    role: pay_date, labels: [pay date, check date, payment date, date paid]}
+  period_start:    {type: date,    labels: [period start, pay period start, period beginning]}
+  period_end:      {type: date,    labels: [period end, pay period end, period ending]}
+  gross_pay:       {type: money,   labels: [gross pay, gross earnings, total gross, gross]}
+  federal_tax:     {type: money,   labels: [federal income tax, federal tax, fed tax, federal withholding]}
+  social_security: {type: money,   labels: [social security, oasdi, soc sec]}
+  medicare:        {type: money,   labels: [medicare]}
+  state_tax:       {type: money,   labels: [state income tax, state tax]}
+  other_deductions: {type: money,   labels: [other deductions, 401k, benefits]}
+  total_deductions: {type: money,   labels: [total deductions]}
+  net_pay:         {type: money,   role: net_pay, labels: [net pay, net amount, take home pay, net]}
+  ytd_gross:       {type: money,   labels: [ytd gross, year to date gross, gross ytd]}
+  ytd_net:         {type: money,   labels: [ytd net, year to date net, net ytd]}
+  deposit_account: {type: account, role: account, labels: [deposit account, direct deposit, account]}
+checks: [paystub_math, fica_rates, date_logic]

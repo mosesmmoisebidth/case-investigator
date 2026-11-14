@@ -21,3 +21,4 @@ data/
 *.pt
 *.onnx
 *.pdparams
+tests/_fixtures/

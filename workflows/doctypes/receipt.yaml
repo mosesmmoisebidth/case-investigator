@@ -1,0 +1,11 @@
+id: receipt
+label: Receipt
+family: commerce
+keywords: [receipt, thank you, paid, change, cashier]
+fields:
+  merchant:     {type: org,   role: vendor, labels: [merchant, store]}
+  receipt_date: {type: date,  role: issue_date, labels: [date]}
+  subtotal:     {type: money, labels: [subtotal]}
+  tax:          {type: money, labels: [tax]}
+  total:        {type: money, role: payment, labels: [total, amount paid]}
+checks: [invoice_math, date_logic]

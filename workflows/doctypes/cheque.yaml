@@ -1,0 +1,15 @@
+id: cheque
+label: Cheque
+family: payment
+keywords: [pay to the order of, cheque, check, memo, dollars, micr]
+fields:
+  payee:          {type: name,    role: payee,  labels: [pay to the order of, pay to]}
+  drawer_name:    {type: name,    role: person, labels: [drawer, account holder]}
+  bank_name:      {type: org,     role: bank,   labels: [bank]}
+  cheque_date:    {type: date,    role: issue_date, labels: [date]}
+  amount:         {type: money,   role: payment, labels: [amount, $]}
+  amount_words:   {type: text,    labels: [dollars]}
+  routing_number: {type: routing, role: routing, labels: [routing]}
+  account_number: {type: account, role: account, labels: [account]}
+micr: true
+checks: [aba_routing, routing_vs_bank, amount_words, date_logic]

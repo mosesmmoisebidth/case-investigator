@@ -1,0 +1,13 @@
+id: utility_bill
+label: Utility bill
+family: address
+keywords: [utility, electric, electricity, gas, water, kwh, service address, amount due, billing period, account number]
+fields:
+  customer_name:  {type: name,    role: person,  labels: [customer name, customer, account name, name]}
+  service_address: {type: address, role: address, labels: [service address, service location, address]}
+  provider:       {type: org,     role: provider, labels: [provider, company]}
+  account_number: {type: account, labels: [account number, account no]}
+  bill_date:      {type: date,    role: issue_date, labels: [bill date, statement date, date issued, invoice date]}
+  due_date:       {type: date,    labels: [due date, payment due]}
+  amount_due:     {type: money,   labels: [amount due, total due, total amount due, balance due]}
+checks: [date_logic]
