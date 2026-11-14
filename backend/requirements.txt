@@ -19,3 +19,7 @@ python-dateutil
 word2number
 rapidocr
 onnxruntime
+deepagents
+langchain-aws
+langchain-anthropic
+langchain-openai
