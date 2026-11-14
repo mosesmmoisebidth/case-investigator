@@ -112,9 +112,10 @@ export function Btn({
   );
 }
 
-export function Card({ children, style, pad = 18 }: { children: ReactNode; style?: CSSProperties; pad?: number }) {
+export function Card({ children, style, pad = 18, className }: { children: ReactNode; style?: CSSProperties; pad?: number; className?: string }) {
   return (
     <div
+      className={className}
       style={{
         background: "var(--panel)",
         border: "1px solid var(--line)",

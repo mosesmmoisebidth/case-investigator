@@ -30,7 +30,12 @@ from engines import doctypes, findings, pipeline, resolve, workflow  # noqa: E40
 from engines.core import CASES_DIR, audit, case_dir, read_json, sha256_file, verify_audit, write_json  # noqa: E402
 from engines.registry import ENGINES  # noqa: E402
 
-app = FastAPI(title="VeriSec Case Investigator", version="0.5.0")
+app = FastAPI(title="VeriSec Case Investigator", version="0.6.0")
+
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+# The web app streams live events straight from this API (no proxy buffering).
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3100", "http://127.0.0.1:3100"], allow_methods=["*"], allow_headers=["*"])
 RUNNING: dict[str, threading.Thread] = {}
 _ID = re.compile(r"^[a-z0-9_-]{3,64}$")
 
