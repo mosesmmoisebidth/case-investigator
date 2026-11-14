@@ -469,3 +469,22 @@ def new_workflow(body: dict = Body(...)) -> dict:
         return workflow.save(base)
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
+
+
+# ------------------------------------------------------------------ report
+from fastapi.responses import HTMLResponse  # noqa: E402
+
+from engines import report as report_engine  # noqa: E402
+
+
+@app.get("/api/cases/{case_id}/report.html", response_class=HTMLResponse)
+def report_html(case_id: str):
+    return HTMLResponse(report_engine.build_html(_case(case_id)))
+
+
+@app.get("/api/cases/{case_id}/report.pdf")
+def report_pdf(case_id: str):
+    case = _case(case_id)
+    p = report_engine.build_pdf(case)
+    audit(case, "user:investigator", "report_pdf", case_id)
+    return FileResponse(p, media_type="application/pdf", filename=f"{case_id}_report.pdf")
