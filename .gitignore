@@ -1,0 +1,23 @@
+# deps / builds
+node_modules/
+.next/
+out/
+.venv/
+__pycache__/
+*.pyc
+# secrets and private material (never in this public repo)
+.env
+.env.*
+!.env.example
+private/
+licenses/
+*.license
+# runtime data
+cases/
+data/
+*.log
+# model weights
+*.pth
+*.pt
+*.onnx
+*.pdparams

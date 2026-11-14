@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   VeriVision Cloud — design tokens + base styles + keyframes.
+   Ported VERBATIM from "VeriVision Cloud.dc.html" lines 14-62. Keep the exact
+   hex values and variable names — the view components reference these via
+   var(--token) in JSX style objects (see CONVENTIONS.md).
+   ============================================================================ */
+
+:root {
+  --bg: #F1EFE6; --bg-sunken: #EAE7DC; --panel: #FAF8F2; --panel-2: #FFFFFF; --panel-3: #F5F2E9;
+  --ink: #211E17; --ink-2: #4B4636; --ink-3: #7A7361; --ink-4: #A39C88;
+  --line: #E2DCCD; --line-2: #D2CBB7; --line-3: #ECE7DA;
+  --accent: #1F7A4E; --accent-2: #185F3D; --accent-ink: #FFFFFF; --accent-tint: #E4EFE6; --accent-line: #B6D4C0; --scan: #2A9D63;
+  --pass: #1F7A4E; --pass-tint: #E4EFE6; --caution: #9A6B00; --caution-tint: #F4EBCF; --fail: #A4392B; --fail-tint: #F3DED9;
+  --shadow: 0 1px 2px rgba(40, 34, 18, .05); --shadow-lg: 0 16px 44px -12px rgba(40, 34, 18, .28);
+  /* Fixed dark-surface tokens — used by always-dark showcase panels on the
+     public marketing site regardless of theme (ported from Verivision Home.dc). */
+  --dark-surf: #16150F; --dark-surf-2: #1E1C14; --dark-line: rgba(236, 232, 220, .1); --dark-ink: #ECE8DC; --dark-ink-2: #A8A290; --dark-accent: #56C68C;
+}
+[data-theme="dark"] {
+  --bg: #131210; --bg-sunken: #0E0D0B; --panel: #1B1A15; --panel-2: #232118; --panel-3: #181712;
+  --ink: #ECE8DC; --ink-2: #B7B1A0; --ink-3: #867F6D; --ink-4: #5E5849;
+  --line: #2A281F; --line-2: #39362A; --line-3: #201E18;
+  --accent: #41AC70; --accent-2: #5BC086; --accent-ink: #0E0D0B; --accent-tint: rgba(65, 172, 112, .15); --accent-line: rgba(65, 172, 112, .4); --scan: #56C68C;
+  --pass: #41AC70; --pass-tint: rgba(65, 172, 112, .15); --caution: #D6A22E; --caution-tint: rgba(214, 162, 46, .16); --fail: #D2685A; --fail-tint: rgba(210, 104, 90, .15);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 18px 50px -12px rgba(0, 0, 0, .6);
+}
+
+/* per-service accents — light */
+[data-service="alpr"] { --accent: #B26C00; --accent-2: #8F5600; --accent-tint: #F7ECD2; --accent-line: #E4CE9A; --scan: #D9920E; }
+[data-service="mrz"] { --accent: #7C3DBE; --accent-2: #6A2FA8; --accent-tint: #EFE6F8; --accent-line: #D4BCEC; --scan: #9B59D0; }
+[data-service="card"] { --accent: #0B7FB8; --accent-2: #096A9B; --accent-tint: #DCEFF8; --accent-line: #ABD6EC; --scan: #1799D6; }
+[data-service="check"] { --accent: #C32B45; --accent-2: #A52138; --accent-tint: #F8DEE3; --accent-line: #ECB6C0; --scan: #D8455E; }
+
+/* per-service accents — dark */
+[data-theme="dark"][data-service="alpr"] { --accent: #E0A53A; --accent-2: #F0BC5A; --accent-tint: rgba(224, 165, 58, .16); --accent-line: rgba(224, 165, 58, .4); --scan: #F0BC5A; }
+[data-theme="dark"][data-service="mrz"] { --accent: #B98AE8; --accent-2: #C9A4F0; --accent-tint: rgba(185, 138, 232, .16); --accent-line: rgba(185, 138, 232, .4); --scan: #C9A4F0; }
+[data-theme="dark"][data-service="card"] { --accent: #3FB6EA; --accent-2: #67C8F0; --accent-tint: rgba(63, 182, 234, .16); --accent-line: rgba(63, 182, 234, .4); --scan: #67C8F0; }
+[data-theme="dark"][data-service="check"] { --accent: #E8788A; --accent-2: #F09AA8; --accent-tint: rgba(232, 120, 138, .16); --accent-line: rgba(232, 120, 138, .4); --scan: #F09AA8; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--accent-tint); color: var(--ink); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 6px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-track { background: transparent; }
+input, textarea, button, select { font-family: inherit; }
+button { cursor: pointer; }
+input:focus-visible, textarea:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@keyframes vv-fade { from { transform: translateY(10px); } to { transform: translateY(0); } }
+@keyframes vv-scan { 0% { top: 0; } 100% { top: 100%; } }
+@keyframes vv-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@keyframes vv-ring { 0% { transform: scale(.7); opacity: .6; } 100% { transform: scale(1.8); opacity: 0; } }
+@keyframes vv-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes vv-pop { 0% { transform: scale(.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes vv-spin { to { transform: rotate(360deg); } }
+@keyframes vv-box { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes vv-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ---- Landing (public marketing) keyframes + layout classes ---- */
+@keyframes vv-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes vv-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes vv-bob2 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
+@keyframes vv-dot { 0% { left: 12%; top: 30%; } 25% { left: 76%; top: 24%; } 50% { left: 68%; top: 62%; } 75% { left: 20%; top: 58%; } 100% { left: 12%; top: 30%; } }
+
+.vv-float { position: absolute; z-index: 3; will-change: transform, opacity; }
+.vv-float-in { will-change: transform; }
+@media (max-width: 1180px) { .vv-float { display: none !important; } }
+.vvf-track { position: relative; height: 460vh; }
+.vvf-stage { position: sticky; top: 64px; height: calc(100vh - 64px); min-height: 540px; display: flex; align-items: center; overflow: hidden; }
+.vvf-cgrid { display: grid; grid-template-columns: 1.04fr 1fr; gap: clamp(28px, 4.5vw, 60px); align-items: center; }
+.vvf-textstack { position: relative; min-height: 372px; }
+.vvf-mediastack { position: relative; min-height: 410px; }
+@media (max-width: 760px) {
+  .vvf-track { height: auto; }
+  .vvf-stage { position: static; height: auto; min-height: 0; display: block; padding: 4px 0 8px; }
+  .vvf-railline { display: none; }
+  .vvf-cgrid { grid-template-columns: 1fr; gap: 24px; align-items: start; }
+  .vvf-textstack { min-height: 288px; }
+}
+
+.vv-rise { animation: vv-rise .6s cubic-bezier(.2, .7, .3, 1) both; }
+.vv-fade { animation: vv-fade .4s cubic-bezier(.2, .7, .3, 1) both; }
+.vv-pop { animation: vv-pop .26s cubic-bezier(.2, .8, .3, 1) both; }
+.vv-pulse { animation: vv-pulse 1.6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
+  .vv-float-in { animation: none !important; }
+}
+
+/* ============================================================================
+   RESPONSIVE-LITE (additive). Desktop (>=860px) is byte-for-byte unchanged:
+   every rule below is gated on (max-width: 859.98px), so it never applies at
+   the desktop breakpoint. The view components keep their original inline styles;
+   these stylesheet rules use !important purely to override those inline
+   grid-template-columns at narrow widths so two-column layouts stack to one.
+   The structural shell change (sidebar -> overlay drawer) is driven from JS in
+   Shell.tsx via matchMedia; these rules only cover content reflow.
+   ============================================================================ */
+@media (max-width: 859.98px) {
+  /* Two-column / fixed-ratio result layouts -> single column. */
+  .vv-col2 { grid-template-columns: 1fr !important; }
+  /* Three-up plan grid -> single column. */
+  .vv-col3 { grid-template-columns: 1fr !important; }
+  /* KPI strips (3 or 4 across) -> 2 across so the numbers stay legible. */
+  .vv-kpi { grid-template-columns: 1fr 1fr !important; }
+  /* Face-step three-up flex row -> wraps and the score ring centers. */
+  .vv-face-row { flex-wrap: wrap !important; }
+  /* Backdrop for the mobile sidebar drawer. */
+  .vv-drawer-backdrop {
+    position: fixed; inset: 0; z-index: 90;
+    background: rgba(20, 17, 10, .5);
+    backdrop-filter: blur(2px);
+  }
+}
