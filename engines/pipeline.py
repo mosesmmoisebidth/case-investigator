@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import char_forensics, findings, graph, intake, logic, payments, pdf_forensics, pixel_forensics, sanctions, workflow
-from .core import audit, case_dir, read_json, write_json
+from .core import audit, case_dir, jsonable, read_json, write_json
 
 Emit = Callable[[dict], None]
 
@@ -40,7 +40,7 @@ def set_status(case: Path, **kw) -> dict:
 def write_draft(case: Path, flags: list[dict]) -> None:
     with open(case / "findings" / "draft.jsonl", "w", encoding="utf-8") as f:
         for x in flags:
-            f.write(json.dumps(x, default=str) + "\n")
+            f.write(json.dumps(x, default=jsonable) + "\n")
 
 
 def analyse_one(case: Path, wf: dict, doc_id: str, app_date: str, use_trufor: bool, emit: Emit) -> tuple[list[dict], list[str]]:
@@ -114,7 +114,7 @@ def investigate(case_id: str, emit: Emit = _noop, use_trufor: bool = True) -> di
     F = findings.verify(case, all_flags)
     sc = findings.score(case, case_type)
     findings.timeline(case)
-    set_status(case, state="done", phase="done", finished=time.time(), findings=len(F), risk=sc["risk_level"], outcome=sc["recommended_outcome"])
+    set_status(case, state="done", phase="done", finished=time.time(), findings=sum(1 for f in F if f["status"] != "lead"), risk=sc["risk_level"], outcome=sc["recommended_outcome"])
     emit({"type": "done", "findings": len(F), "risk_level": sc["risk_level"], "recommended_outcome": sc["recommended_outcome"]})
     audit(case, "pipeline", "investigate_done", case_id, {"findings": len(F), "risk": sc["risk_level"]})
     return {"documents": len(docs), "findings": F, "score": sc}

@@ -38,10 +38,22 @@ def rel(case: Path, p: Path) -> str:
     return p.relative_to(case).as_posix()
 
 
+def jsonable(o: Any) -> Any:
+    """numpy scalars and arrays become plain numbers and lists; anything else a string."""
+    if hasattr(o, "item") and callable(o.item):
+        try:
+            return o.item()
+        except (ValueError, TypeError):
+            pass
+    if hasattr(o, "tolist"):
+        return o.tolist()
+    return str(o)
+
+
 def write_json(case: Path, relpath: str, obj: Any) -> str:
     p = case / relpath
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(obj, indent=2, default=str), encoding="utf-8")
+    p.write_text(json.dumps(obj, indent=2, default=jsonable), encoding="utf-8")
     return relpath
 
 

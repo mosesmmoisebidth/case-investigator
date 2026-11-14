@@ -147,7 +147,7 @@ def investigate(case_id: str, emit: Emit, use_trufor: bool = True) -> dict:
     if narrative:
         (case / "report").mkdir(exist_ok=True)
         (case / "report" / "narrative.md").write_text(narrative, encoding="utf-8")
-    pipeline.set_status(case, state="done", phase="done", finished=time.time(), findings=len(F), risk=sc["risk_level"], outcome=sc["recommended_outcome"])
+    pipeline.set_status(case, state="done", phase="done", finished=time.time(), findings=sum(1 for f in F if f["status"] != "lead"), risk=sc["risk_level"], outcome=sc["recommended_outcome"])
     emit({"type": "done", "findings": len(F), "risk_level": sc["risk_level"], "recommended_outcome": sc["recommended_outcome"]})
     return {"findings": F, "score": sc, "narrative": narrative}
 

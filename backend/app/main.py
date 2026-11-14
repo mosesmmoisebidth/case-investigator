@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse  # n
 
 from agent import llm  # noqa: E402
 from engines import doctypes, findings, pipeline, resolve, workflow  # noqa: E402
-from engines.core import CASES_DIR, audit, case_dir, read_json, sha256_file, verify_audit, write_json  # noqa: E402
+from engines.core import CASES_DIR, audit, case_dir, jsonable, read_json, sha256_file, verify_audit, write_json  # noqa: E402
 from engines.registry import ENGINES  # noqa: E402
 
 app = FastAPI(title="VeriSec Case Investigator", version="0.6.0")
@@ -52,7 +52,7 @@ def _emit_to(case: Path):
     def emit(ev: dict) -> None:
         ev = {"t": round(time.time(), 3), **ev}
         with lock, open(case / "events.jsonl", "a", encoding="utf-8") as f:
-            f.write(json.dumps(ev, default=str) + "\n")
+            f.write(json.dumps(ev, default=jsonable) + "\n")
 
     return emit
 
