@@ -65,7 +65,18 @@ def image_text(png_path: Path) -> dict:
         for box, t, sc in zip(boxes, txts, scores):
             xs = [p[0] for p in box]
             ys = [p[1] for p in box]
-            words.append({"t": str(t), "b": [round(float(min(xs)), 1), round(float(min(ys)), 1), round(float(max(xs)), 1), round(float(max(ys)), 1)], "conf": round(float(sc), 3)})
+            x0, y0, x1, y1 = float(min(xs)), float(min(ys)), float(max(xs)), float(max(ys))
+            parts = str(t).split()
+            if len(parts) <= 1:
+                words.append({"t": str(t), "b": [round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)], "conf": round(float(sc), 3)})
+                continue
+            # OCR returns phrases; split them into words with proportional boxes
+            total = sum(len(p) for p in parts) + (len(parts) - 1)
+            cx = x0
+            for p in parts:
+                w = (x1 - x0) * len(p) / max(1, total)
+                words.append({"t": p, "b": [round(cx, 1), round(y0, 1), round(cx + w, 1), round(y1, 1)], "conf": round(float(sc), 3)})
+                cx += w + (x1 - x0) / max(1, total)
     return {"source": "ocr", "spans": [], "words": words}
 
 

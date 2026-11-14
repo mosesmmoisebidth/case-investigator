@@ -129,12 +129,48 @@ def extract(case: Path, doc_id: str) -> dict:
                     xs = [w["b"] for w in line]
                     fields["amount_words"] = {"value": t, "raw": t, "type": "text", "role": None, "label": "legal amount line", "page": pg["page"], "bbox": [min(b[0] for b in xs), min(b[1] for b in xs), max(b[2] for b in xs), max(b[3] for b in xs)], "conf": 1.0}
                     break
+    if meta["doc_type"] in ("passport", "drivers_license"):
+        _identity_fields(fields, out.get("mrz") or [])
     missing = [f for f in (pack.get("fields") or {}) if f not in fields]
     out["missing_fields"] = missing
     path = write_json(case, f"extracted/{doc_id}.json", out)
     audit(case, "engine:extract", "extract", doc_id, {"fields": len(fields), "missing": len(missing)})
     tx = f", {len(out.get('transactions', []))} transactions" if "transactions" in out else ""
     return result([path], f"{doc_id}: {len(fields)} fields read{tx}; not found: {', '.join(missing) or 'none'}")
+
+
+def _identity_fields(fields: dict, mrz: list[str]) -> None:
+    """Full name from surname + given names; missing identity fields from the MRZ."""
+    sn, gn = fields.get("surname"), fields.get("given_names")
+    if sn and gn:
+        val = f"{gn['value']} {sn['value']}"
+        val = " ".join(w.capitalize() for w in val.split()) if val.isupper() else val
+        b1, b2 = gn.get("bbox"), sn.get("bbox")
+        bbox = [min(b1[0], b2[0]), min(b1[1], b2[1]), max(b1[2], b2[2]), max(b1[3], b2[3])] if b1 and b2 else (b1 or b2)
+        fields["full_name"] = {"value": val, "raw": f"{gn['raw']} / {sn['raw']}", "type": "name", "role": "person", "label": "given names + surname", "page": gn.get("page"), "bbox": bbox, "conf": 1.0}
+    if len(mrz) >= 2 and len(mrz[-1]) == 44:
+        try:
+            from mrz.checker.td3 import TD3CodeChecker
+
+            f = TD3CodeChecker("\n".join(mrz[-2:])).fields()
+
+            def d6(s, future=False):
+                yy = int(s[:2])
+                cent = 2000 if (yy <= 40 or future) else 1900
+                return f"{cent + yy:04d}-{s[2:4]}-{s[4:6]}"
+
+            src = {"type": "date", "label": "MRZ", "page": None, "bbox": None, "conf": 1.0}
+            if "date_of_birth" not in fields and f.birth_date:
+                fields["date_of_birth"] = {**src, "value": d6(f.birth_date), "raw": f.birth_date, "role": "dob"}
+            if "expiry_date" not in fields and f.expiry_date:
+                fields["expiry_date"] = {**src, "value": d6(f.expiry_date, True), "raw": f.expiry_date, "role": "expiry"}
+            if "document_number" not in fields and f.document_number:
+                fields["document_number"] = {**src, "type": "id", "value": f.document_number.replace("<", ""), "raw": f.document_number, "role": "id_number"}
+            if "full_name" not in fields and f.surname:
+                v = " ".join(w.capitalize() for w in f"{f.name} {f.surname}".replace("<", " ").split())
+                fields["full_name"] = {**src, "type": "name", "value": v, "raw": f"{f.name} {f.surname}", "role": "person"}
+        except Exception:
+            pass
 
 
 def add_files(case: Path, paths: list[Path]) -> list[str]:

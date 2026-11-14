@@ -149,14 +149,25 @@ def _find_label(line: list[dict], label: str) -> tuple[int, int] | None:
     return None
 
 
+def _gap_break(prev: dict, w: dict) -> bool:
+    """A column break: the horizontal gap is far wider than a word space."""
+    ch = (prev["b"][2] - prev["b"][0]) / max(1, len(prev["t"]))
+    h = prev["b"][3] - prev["b"][1]
+    return (w["b"][0] - prev["b"][2]) > max(6 * ch, 2.2 * h, 40)
+
+
 def _cut_at_next_label(words: list[dict]) -> list[dict]:
-    """A value ends where the next label on the same line starts ("... Amount: 1,500")."""
+    """A value ends where the next label starts ("... Amount: 1,500") or at a column break."""
     out = []
     for i, w in enumerate(words):
-        if i > 0 and w["t"].endswith(":") and not re.search(r"\d", w["t"]):
+        if i > 0 and ((w["t"].endswith(":") and not re.search(r"\d", w["t"])) or _gap_break(words[i - 1], w)):
             break
         out.append(w)
     return out
+
+
+def _nice(name: str) -> str:
+    return " ".join(x.capitalize() if x.isupper() else x for x in name.split()) if name.isupper() else name
 
 
 def _header_org(pages: list[dict], role: str) -> tuple[str, dict, list[dict]] | None:
@@ -166,19 +177,24 @@ def _header_org(pages: list[dict], role: str) -> tuple[str, dict, list[dict]] | 
         return None
     pg = pages[0]
     for line in lines_of(pg["words"])[:6]:
-        head = []
-        for w in line:  # stop where a label on the same line starts ("Date: ...")
-            if w["t"].endswith(":"):
-                break
-            head.append(w)
-        line = head
-        text = " ".join(w["t"] for w in line)
-        if not text:
-            continue
-        name = re.split(r"\s+[-|]\s+", text)[0].strip()
-        if hint.search(name) and 2 <= len(name.split()) <= 8:
-            ws = [w for w in line if w["t"] in name.split()]
-            return name.title() if name.isupper() else name, pg, ws or line
+        segs: list[list[dict]] = [[]]
+        for i, w in enumerate(line):  # split the line into columns; labels end a segment
+            if i > 0 and _gap_break(line[i - 1], w):
+                segs.append([])
+            segs[-1].append(w)
+        for seg in segs:
+            head = []
+            for w in seg:
+                if w["t"].endswith(":"):
+                    break
+                head.append(w)
+            text = " ".join(w["t"] for w in head)
+            if not text:
+                continue
+            name = re.split(r"\s+[-|]\s+", text)[0].strip()
+            if hint.search(name) and 2 <= len(name.split()) <= 8:
+                ws = [w for w in head if w["t"] in name.split()]
+                return _nice(name), pg, ws or head
     return None
 
 
@@ -320,13 +336,36 @@ def extract_transactions(pages: list[dict]) -> list[dict]:
     return rows
 
 
+TO_ALPHA = str.maketrans({"0": "O", "1": "I", "5": "S", "8": "B", "2": "Z", "6": "G"})
+TO_DIGIT = str.maketrans({"O": "0", "Q": "0", "D": "0", "I": "1", "L": "1", "S": "5", "B": "8", "Z": "2", "G": "6"})
+
+
+def fix_td3(lines: list[str]) -> list[str]:
+    """OCR often swaps O/0, I/1, S/5 in an MRZ; each TD3 position is either
+    letters or digits, so map each character back by its position."""
+    if len(lines) != 2 or len(lines[0]) != 44 or len(lines[1]) != 44:
+        return lines
+    l1 = lines[0][:2] + lines[0][2:5].translate(TO_ALPHA) + lines[0][5:].translate(TO_ALPHA)
+    l2 = lines[1]
+    digits = [9, *range(13, 20), 19, *range(21, 28), 27, 42, 43]
+    alpha = [10, 11, 12, 20]
+    chars = list(l2)
+    for i in digits:
+        chars[i] = chars[i].translate(TO_DIGIT)
+    for i in alpha:
+        chars[i] = chars[i].translate(TO_ALPHA)
+    return [l1, "".join(chars)]
+
+
 def find_mrz(pages: list[dict]) -> list[str]:
     out = []
     for pg in pages:
         for line in lines_of(pg["words"]):
-            t = "".join(w["t"] for w in line).replace(" ", "").upper()
+            t = "".join(w["t"] for w in line).replace(" ", "").upper().replace("«", "<").replace("‹", "<")
             if MRZ_LINE.match(t) and t.count("<") >= 2:
                 out.append(t)
+    if len(out) >= 2 and len(out[-1]) == 44 and len(out[-2]) == 44 and pages and pages[0].get("source") == "ocr":
+        out = out[:-2] + fix_td3(out[-2:])
     return out
 
 

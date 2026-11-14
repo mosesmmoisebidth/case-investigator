@@ -77,8 +77,8 @@ def _raster_page(png: Path, words: list[dict]) -> list[dict]:
         for w in ln:
             # amounts and long numbers only: that is where edits matter, and
             # mixed-font layouts (IDs, logos) do not drown the signal
-            if not (re.search(r"\d[\d,]*\.\d{2}", w["t"]) or len(re.sub(r"\D", "", w["t"])) >= 4):
-                continue
+            if "<" in w["t"] or not (re.search(r"\d[\d,]*\.\d{2}", w["t"]) or len(re.sub(r"\D", "", w["t"])) >= 4):
+                continue  # MRZ lines have their own check digits
             x0, y0, x1, y1 = map(int, w["b"])
             crop = img[max(0, y0 - 2) : y1 + 2, max(0, x0 - 2) : x1 + 2]
             if crop.size == 0:

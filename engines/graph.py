@@ -25,15 +25,20 @@ FREQ = [(7, 52, "weekly"), (14, 26, "biweekly"), (16, 24, "semi-monthly"), (31, 
 def parse_context(text: str) -> dict:
     out: dict = {"raw": text or ""}
     t = text or ""
-    money = [float(re.sub(r"[^\d.]", "", m)) for m in re.findall(r"\$\s?[\d,]+(?:\.\d+)?k?", t, re.I) if re.sub(r"[^\d.]", "", m)]
-    money = [m * (1000 if re.search(r"\d\s*k\b", t, re.I) and m < 1000 else 1) for m in money]
-    if money:
-        if re.search(r"(?i)income|salary|earn", t):
-            out["stated_income"] = money[0]
-            if len(money) > 1:
-                out["amount"] = money[1]
-        else:
-            out["amount"] = money[0]
+    def num(x: str) -> float:
+        return float(re.sub(r"[^\d.]", "", x))
+
+    inc = re.search(r"(?i)(?:salary|income|earns?|earning)\D{0,12}\$?\s?([\d,]+(?:\.\d+)?)", t)
+    if inc:
+        out["stated_income"] = num(inc.group(1))
+    rent = re.search(r"(?i)rent\D{0,10}\$?\s?([\d,]+(?:\.\d+)?)", t)
+    if rent:
+        out["rent"] = num(rent.group(1))
+    for m in re.finditer(r"\$\s?([\d,]+(?:\.\d+)?)", t):
+        v = num(m.group(1))
+        if v not in (out.get("stated_income"), out.get("rent")):
+            out["amount"] = v
+            break
     parts = [p.strip() for p in t.split(",")]
     for p in parts:
         if re.fullmatch(r"[A-Z][a-zA-Z.'-]+(?: [A-Z][a-zA-Z.'-]*){1,3}", p) and not re.search(r"(?i)application|claim|loan|rental", p):
@@ -486,6 +491,8 @@ def build(case: Path, case_type: str, context_text: str = "") -> dict:
     for e in G.edges:
         if e["state"] not in ("conflict", "missing") or not e["rule"] or e["rule"] == "required_documents":
             continue
+        if e["source"].startswith("missing:"):
+            continue  # the placeholder's incoming link already carries this finding
         sev = sev_of.get(e["rule"], "medium")
         if e["state"] == "missing" and sev in ("critical", "high"):
             sev = "medium"  # missing stays medium until the applicant supplies it

@@ -3,7 +3,9 @@ label: Passport or national ID
 family: identity
 keywords: [passport, passeport, national identity, identity card, nationality, date of birth, mrz, p<]
 fields:
-  full_name:      {type: name,   role: person, labels: [name, surname, given names, full name]}
+  full_name:      {type: name,   role: person, labels: [full name, name]}
+  surname:        {type: text,   labels: [surname, last name]}
+  given_names:    {type: text,   labels: [given names, given name, first name]}
   date_of_birth:  {type: date,   role: dob,    labels: [date of birth, birth date, dob]}
   document_number: {type: id,     role: id_number, labels: [passport no, passport number, document no, id number]}
   nationality:    {type: text,   labels: [nationality]}

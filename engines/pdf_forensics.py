@@ -93,9 +93,15 @@ def run(case: Path, doc_id: str) -> dict:
             hidden = [w["t"] for w in words if _overlap(r, w["b"]) > 0.6]
             if hidden:
                 covers.append({"rect": r, "covers_text": hidden[:8]})
+        # white text is only invisible when nothing dark is painted under it
+        dark = []
+        for d in page.get_drawings():
+            fill = d.get("fill")
+            if fill and (0.299 * fill[0] + 0.587 * fill[1] + 0.114 * fill[2]) < 0.9:
+                dark.append([round(v * SCALE, 1) for v in d["rect"]])
         white_text = []
         for sp in text_pages.get(pno, {}).get("spans", []):
-            if sp.get("color") in (0xFFFFFF, 16777215) and sp["text"].strip():
+            if sp.get("color") in (0xFFFFFF, 16777215) and sp["text"].strip() and not any(_overlap(r, sp["bbox"]) > 0.5 for r in dark):
                 white_text.append({"text": sp["text"][:60], "bbox": sp["bbox"]})
         pages_out.append({"page": pno, "fonts": fonts, "annotations": annots, "white_boxes_over_text": covers, "invisible_text": white_text})
         for c in covers:

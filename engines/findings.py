@@ -60,14 +60,23 @@ def verify(case: Path, flags: list[dict]) -> list[dict]:
         if f["layer"] in mergeable and not (f["layer"] == "relationship" and not f.get("field")):
             for g in groups:
                 g0 = g[0]
-                same_field = bool(f.get("field")) and f.get("field") == g0.get("field") and g0.get("doc") == f.get("doc")
-                same_region = g0["layer"] != "relationship" and f["layer"] != "relationship" and g0.get("doc") == f.get("doc") and g0.get("page") == f.get("page") and _overlap(f.get("bbox"), g0.get("bbox"))
+                same_field = bool(f.get("field")) and any(f.get("field") == x.get("field") and x.get("doc") == f.get("doc") for x in g)
+                same_region = f["layer"] != "relationship" and any(x["layer"] != "relationship" and x.get("doc") == f.get("doc") and x.get("page") == f.get("page") and _overlap(f.get("bbox"), x.get("bbox")) for x in g)
                 if g0["layer"] in mergeable and (same_field or same_region):
                     g.append(f)
                     placed = True
                     break
         if not placed:
             groups.append([f])
+    # document-level PDF signals (re-saved, editor producer) support that document's
+    # strongest integrity finding instead of standing alone
+    doc_level = [g for g in groups if len(g) == 1 and g[0]["layer"] == "pdf" and not g[0].get("bbox")]
+    for g in doc_level:
+        f = g[0]
+        hosts = [h for h in groups if h is not g and any(x.get("doc") == f.get("doc") and x["layer"] in ("logic", "pixel", "char") and SEV_ORDER.index(x["severity"]) >= SEV_ORDER.index("high") for x in h)]
+        if hosts:
+            hosts[0].append(f)
+            groups.remove(g)
     findings = []
     for i, g in enumerate(groups, start=1):
         lead = sorted(g, key=lambda x: (x["deterministic"], SEV_ORDER.index(x["severity"])), reverse=True)[0]
@@ -83,8 +92,8 @@ def verify(case: Path, flags: list[dict]) -> list[dict]:
                 sev = _bump(sev) if sev in ("medium", "high") else sev
         elif deterministic:
             conf = "high"
-        elif lead["layer"] in ("pixel", "char") and lead["values"].get("peak", lead["values"].get("score", 1)) < 0.5:
-            conf = "low"
+        elif lead["layer"] in ("pixel", "char"):
+            conf = "low"  # one model-based layer alone is a lead, not a finding
         else:
             conf = "medium"
         claim = lead["claim"]

@@ -77,11 +77,14 @@ def name_score(q: str, n: str) -> float:
         for t in a:
             w = _w(t) * (0.3 if len(t) == 1 else 1.0)
             best = max(JaroWinkler.similarity(t, u) for u in b)
-            num += w * (best if best >= 0.88 else 0.0)
+            # near-identical words count fully; close spellings only partly
+            num += w * (best if best >= 0.95 else 0.6 * best if best >= 0.88 else 0.0)
             den += w
         return num / den if den else 0.0
 
-    return round(0.7 * directed(tq, tn) + 0.3 * directed(tn, tq), 4)
+    fwd, bwd = directed(tq, tn), directed(tn, tq)
+    # a short alias ("Maria") must not lift a query that mostly does not match
+    return round(min(0.6 * fwd + 0.4 * bwd, fwd + 0.15), 4)
 
 
 @lru_cache(maxsize=1)
@@ -119,7 +122,10 @@ def _local_index() -> tuple[list[dict], dict[str, list[int]]]:
     return rows, block
 
 
-def local_match(name: str, birth_date: str | None = None, limit: int = 5) -> list[dict]:
+ORG_SCHEMAS = {"Organization", "Company", "LegalEntity"}
+
+
+def local_match(name: str, birth_date: str | None = None, limit: int = 5, schema: str = "Person") -> list[dict]:
     rows, block = _local_index()
     q = _norm(name)
     cand = set()
@@ -129,6 +135,8 @@ def local_match(name: str, birth_date: str | None = None, limit: int = 5) -> lis
     scored = []
     for i in cand:
         r = rows[i]
+        if (schema == "Person") != (r.get("schema") == "Person") and not (schema != "Person" and r.get("schema") in ORG_SCHEMAS):
+            continue
         best = max((name_score(q, n) for n in r["norms"]), default=0)
         conf = []
         if birth_date and r.get("birth_date"):
@@ -170,7 +178,7 @@ def run(case: Path) -> dict:
             matches = [{"id": r.get("id"), "name": r.get("caption"), "score": r.get("score"), "dataset": ",".join(r.get("datasets", [])), "source": "verisec_yente"} for r in results]
             source = "verisec_yente"
         else:
-            matches = [{**m, "source": "opensanctions_local"} for m in local_match(n["name"], n["dob"])]
+            matches = [{**m, "source": "opensanctions_local"} for m in local_match(n["name"], n["dob"], schema=n["schema"])]
             source = "opensanctions_local"
         best = matches[0] if matches else None
         screened.append({**n, "source": source, "best": best, "matches": matches[:5]})

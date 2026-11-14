@@ -24,7 +24,7 @@ import scipy.ndimage as ndi
 from PIL import Image
 
 from .core import ROOT, VERISEC_ROOT, audit, flag, result, write_json
-from .intake import doc_meta
+from .intake import doc_meta, doc_pages
 
 TRUFOR_DIR = Path(os.environ.get("TRUFOR_DIR", VERISEC_ROOT / "TruFor"))
 TRUFOR_PY = Path(os.environ.get("TRUFOR_PY", TRUFOR_DIR / ".venv-trufor" / "Scripts" / "python.exe"))
@@ -151,6 +151,7 @@ def run(case: Path, doc_id: str, use_trufor: bool = True) -> dict:
     pngs = [case / p["png"] for p in raster_pages]
     tf = run_trufor(case, doc_id, pngs) if use_trufor else {}
     pages_out, flags, evid = [], [], []
+    words_by_page = {pg["page"]: pg.get("words", []) for pg in doc_pages(case, doc_id)}
     for p, png in zip(raster_pages, pngs):
         W, H = Image.open(png).size
         ela, noise = ela_map(png), noise_map(png)
@@ -179,12 +180,25 @@ def run(case: Path, doc_id: str, use_trufor: bool = True) -> dict:
         cm = copy_move(png)
         pages_out.append({"page": p["page"], "trufor_score": t["score"] if t else None, "threshold": thr, "regions": agree, "copy_move_pairs": len(cm), "copy_move": cm[:20], "heatmap": heat_rel})
         evid.append(heat_rel)
+        # Edits to financial documents change text, and cover a small share of the page
+        # (well under 6%). Large blobs over photos or backgrounds are not counted, and a
+        # region needs TruFor plus a second layer (or a very strong TruFor peak).
+        words = words_by_page.get(p["page"], [])
         for r in agree:
-            if r["peak"] >= thr and len(r["layers_agreeing"]) >= 1:
-                sev = "high" if len(r["layers_agreeing"]) >= 2 else "medium"
-                flags.append(flag("pixel_tamper_region", f"Edited-looking region on page {p['page']} of {doc_id}", sev, doc=doc_id, evidence=[heat_rel], layer="pixel", page=p["page"], bbox=r["bbox"], values={"peak": r["peak"], "layers": r["layers_agreeing"]}))
-        if cm:
-            flags.append(flag("copy_move", f"A patch is cloned elsewhere on page {p['page']} of {doc_id}", "medium", doc=doc_id, evidence=[heat_rel], layer="pixel", page=p["page"], values={"pairs": len(cm)}))
+            over_text = [w["t"] for w in words if not (w["b"][2] < r["bbox"][0] or w["b"][0] > r["bbox"][2] or w["b"][3] < r["bbox"][1] or w["b"][1] > r["bbox"][3])]
+            r["text_under"] = over_text[:6]
+            if r["area_pct"] > 6 or not over_text or r["peak"] < thr:
+                continue
+            lay = r["layers_agreeing"]
+            if "trufor" in lay and len(lay) >= 2:
+                sev = "high"
+            elif "trufor" in lay and r["peak"] >= thr + 0.25:
+                sev = "medium"
+            else:
+                continue
+            flags.append(flag("pixel_tamper_region", f"Edited-looking region over '{' '.join(over_text[:3])}' on page {p['page']} of {doc_id}", sev, doc=doc_id, evidence=[heat_rel], layer="pixel", page=p["page"], bbox=r["bbox"], values={"peak": r["peak"], "layers": lay, "text": " ".join(over_text[:6])}))
+        if len(cm) >= 25:
+            flags.append(flag("copy_move", f"A patch is cloned elsewhere on page {p['page']} of {doc_id}", "low", doc=doc_id, evidence=[heat_rel], layer="pixel", page=p["page"], values={"pairs": len(cm)}))
     r = write_json(case, f"{ev_dir}/pixel.json", {"applicable": True, "pages": pages_out})
     audit(case, "engine:pixel_forensics", "run", doc_id, {"pages": len(pages_out), "flags": len(flags)})
     return result([r, *evid], f"{doc_id}: {len(pages_out)} raster page(s) checked, {len(flags)} pixel signal(s)", flags)
