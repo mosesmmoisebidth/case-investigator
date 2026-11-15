@@ -162,8 +162,8 @@ export function DocViewer({ caseId, docs, initial }: { caseId: string; docs: Doc
             tabs={[
               { id: "findings", label: "Findings", badge: d && d.findings.some((f) => f.status !== "lead") ? <span className="tnum rounded-pill bg-danger-tint px-1.5 text-[10.5px] font-medium text-danger">{d.findings.filter((f) => f.status !== "lead").length}</span> : null },
               { id: "fields", label: "Fields" },
-              { id: "file", label: "File" },
-              { id: "checks", label: "Checks" },
+              { id: "file", label: "File history" },
+              { id: "checks", label: "Rule checks" },
             ]}
           />
         </div>

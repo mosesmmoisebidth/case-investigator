@@ -16,14 +16,14 @@ import { Report } from "@/components/case/Report";
 
 type TabId = "live" | "overview" | "graph" | "documents" | "consistency" | "timeline" | "findings" | "report";
 const TABS: Array<[TabId, string]> = [
-  ["live", "Live investigation"],
-  ["overview", "Overview"],
-  ["graph", "Relationship graph"],
+  ["live", "Live run"],
+  ["overview", "Summary"],
+  ["graph", "Connections"],
   ["documents", "Documents"],
-  ["consistency", "Consistency"],
+  ["consistency", "Cross-check"],
   ["timeline", "Timeline"],
-  ["findings", "Findings review"],
-  ["report", "Report"],
+  ["findings", "Findings"],
+  ["report", "Case report"],
 ];
 
 function CaseScreen() {
@@ -160,7 +160,7 @@ function CaseScreen() {
       ) : running ? (
         <Card className="flex flex-wrap items-center gap-3">
           <Spinner size={16} />
-          <span className="text-body text-pine">The investigation is running. Follow it on the Live investigation tab.</span>
+          <span className="text-body text-pine">The investigation is running. Follow it on the Live run tab.</span>
           <Btn kind="soft" className="ml-auto" onClick={() => setTab("live")}>
             Watch live
           </Btn>

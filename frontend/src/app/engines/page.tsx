@@ -24,7 +24,7 @@ export default function Engines() {
   const layers = rows ? Array.from(new Set(rows.map((r) => r.layer))) : [];
   return (
     <Page>
-      <PageHeader title="Engines" sub="VeriSec engines wrapped as tools. Each one saves its raw output to the case evidence folder and returns only the evidence path and a short summary, so every finding is traceable." />
+      <PageHeader title="Detection engines" sub="VeriSec engines wrapped as tools. Each one saves its raw output to the case evidence folder and returns only the evidence path and a short summary, so every finding is traceable." />
       <section className="flex flex-wrap items-center gap-4 rounded-shell bg-pine p-5 text-white">
         <span className="grid size-11 shrink-0 place-items-center rounded-pill bg-lime text-pine">
           <Bot aria-hidden className="size-5" strokeWidth={1.7} />

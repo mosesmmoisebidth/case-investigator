@@ -30,13 +30,13 @@ const NAV: { label: string; items: Item[] }[] = [
     label: "Configure",
     items: [
       { href: "/workflows", label: "Workflows", icon: WorkflowGlyph },
-      { href: "/engines", label: "Engines", icon: Cpu },
+      { href: "/engines", label: "Detection engines", icon: Cpu },
     ],
   },
   {
     label: "Manage",
     items: [
-      { href: "/audit", label: "Audit log", icon: ScrollText },
+      { href: "/audit", label: "Audit trail", icon: ScrollText },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },

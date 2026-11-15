@@ -23,7 +23,7 @@ export default function Audit() {
   }, [sel]);
   return (
     <Page>
-      <PageHeader title="Audit log" sub="Every upload, tool call, finding change and decision. Each line carries the hash of the line before it, so any edit or deletion is detectable." />
+      <PageHeader title="Audit trail" sub="Every upload, tool call, finding change and decision. Each line carries the hash of the line before it, so any edit or deletion is detectable." />
       {!cases ? (
         <Loading label="Loading cases" />
       ) : cases.length === 0 ? (
