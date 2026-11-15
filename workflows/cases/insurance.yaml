@@ -1,0 +1,29 @@
+id: insurance
+label: Insurance claim
+description: Claim review. Policy active on the incident date, real vendors, invoices matched by payments and dated after the incident.
+window_days: 180
+required_documents:
+  - {types: [passport, drivers_license], label: Photo ID, count: 1}
+  - {types: [invoice, receipt], label: Invoices or receipts, count: 1}
+  - {types: [bank_statement, cheque, card], label: Proof of payment, count: 1}
+steps:
+  - {id: intake, label: Intake and classify, engine: intake, enabled: true}
+  - {id: extract, label: Read every field, engine: extract, enabled: true}
+  - {id: pdf_forensics, label: PDF structure forensics, engine: pdf_forensics, enabled: true}
+  - {id: pixel_forensics, label: Pixel forensics (TruFor), engine: pixel_forensics, enabled: true}
+  - {id: char_forensics, label: Character forensics, engine: char_forensics, enabled: true}
+  - {id: logic, label: Content logic, engine: logic, enabled: true}
+  - {id: payments, label: Payment instruments, engine: payments, enabled: true}
+  - {id: graph, label: Relationship graph, engine: graph, enabled: true}
+  - {id: sanctions, label: Sanctions screening, engine: sanctions, enabled: true}
+  - {id: verify, label: Verify findings, engine: verify, enabled: true}
+rules:
+  - {id: same_person, label: Same person on every document, flow: identity, severity: high, enabled: true}
+  - {id: id_valid, label: Photo ID not expired, flow: identity, severity: high, enabled: true}
+  - {id: invoice_paid, label: Every invoice amount matches a payment, flow: money, severity: high, enabled: true, params: {days: 30, tolerance: 1.0}}
+  - {id: cheque_account, label: Payments drawn on the claimant's own account, flow: money, severity: high, enabled: true}
+  - {id: recency, label: Documents dated within the window, flow: time, severity: medium, enabled: true}
+  - {id: required_documents, label: Every required document present, flow: time, severity: medium, enabled: true}
+scoring:
+  weights: {critical: 40, high: 20, medium: 8, low: 2, info: 0}
+  levels: {medium: 10, high: 30, critical: 60}

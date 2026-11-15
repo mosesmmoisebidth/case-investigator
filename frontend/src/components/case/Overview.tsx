@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ArrowRight, BadgeCheck, CircleSlash, FileQuestion, FileText, Link2, PenLine, ShieldAlert, ShieldCheck, Unlink } from "lucide-react";
 import { api, fileUrl, riskTone, STATE_TONE, type CaseDetail, type Decision } from "@/lib/api";
-import { Badge, Btn, Card, DISPLAY, Eyebrow, Kpi, MONO } from "@/components/ui/kit";
+import { Badge, Btn, Card, Eyebrow, Input, Kpi, ScoreDial, SelectBox, SevChip, TextArea } from "@/components/ui/kit";
+import { cn } from "@/lib/utils";
 
 const OUTCOMES = ["Escalate to compliance", "Decline: suspected fraud", "Refer to senior investigator", "Request more documents", "Clear", "Incomplete"];
 
@@ -31,114 +33,147 @@ export function Overview({ c, onChange }: { c: CaseDetail; onChange: () => void 
     setBusy(false);
   };
 
-  if (!sc || sc.risk_level == null) return <Card style={{ color: "var(--ink-3)" }}>The overview appears when the investigation is finished.</Card>;
+  if (!sc || sc.risk_level == null) return <Card className="text-body text-slate">The overview appears when the investigation is finished.</Card>;
   const sevs = ["critical", "high", "medium", "low"] as const;
+  const tone = riskTone(sc.risk_level);
+  const override = outcome !== sc.recommended_outcome;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div className="vv-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-        <Kpi label="Case risk" value={sc.risk_level} tone={riskTone(sc.risk_level)} sub={`score ${sc.risk_score} · accepted or verified findings`} />
-        <Kpi label="Links verified" value={gc?.verified ?? 0} tone="pass" sub="relationships that check out" />
-        <Kpi label="Links broken" value={gc?.conflict ?? 0} tone={gc?.conflict ? "fail" : undefined} sub="conflicting facts" />
-        <Kpi label="Missing" value={gc?.missing ?? 0} tone={gc?.missing ? "caution" : undefined} sub="documents or links absent" />
-      </div>
-      <div className="vv-col2" style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 14, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Card>
-            <Eyebrow>Findings by severity</Eyebrow>
-            <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-              {sevs.map((s) => (
-                <button key={s} onClick={() => go("findings")} style={{ flex: 1, minWidth: 100, textAlign: "left", padding: "11px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "var(--panel-2)", color: "var(--ink)" }}>
-                  <div style={{ font: `600 9.5px/1 ${MONO}`, letterSpacing: ".1em", color: s === "critical" || s === "high" ? "var(--fail)" : s === "medium" ? "var(--caution)" : "var(--ink-3)" }}>{s.toUpperCase()}</div>
-                  <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 24, marginTop: 6 }}>{sc.by_severity?.[s] ?? 0}</div>
-                </button>
-              ))}
-            </div>
-            {c.narrative && (
-              <div style={{ marginTop: 16, padding: 14, borderRadius: 10, background: "var(--panel-3)", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>
-                <Eyebrow style={{ marginBottom: 8 }}>Lead investigator&apos;s summary</Eyebrow>
-                {c.narrative}
-              </div>
-            )}
-            {c.leads.length > 0 && (
-              <div style={{ marginTop: 14 }}>
-                <Eyebrow>Open leads</Eyebrow>
-                {c.leads.map((l, i) => (
-                  <div key={i} style={{ fontSize: 12.5, color: "var(--ink-2)", padding: "7px 0", borderBottom: "1px solid var(--line-3)" }}>
-                    {l.note}
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-          <Card>
-            <Eyebrow>Documents · {c.documents_detail.length}</Eyebrow>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
-              {c.documents_detail.map((d) => (
-                <button key={d.doc_id} onClick={() => go("documents", `&doc=${d.doc_id}`)} style={{ textAlign: "left", padding: 0, borderRadius: 10, border: `1.5px solid var(--${d.badge === "pass" ? "line" : d.badge})`, background: "var(--panel-2)", overflow: "hidden", color: "var(--ink)" }}>
-                  {d.thumb && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={fileUrl(c.id, d.thumb)} alt="" style={{ width: "100%", height: 120, objectFit: "cover", objectPosition: "top", display: "block", borderBottom: "1px solid var(--line)", background: "#fff" }} />
-                  )}
-                  <div style={{ padding: "8px 9px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontWeight: 650, fontSize: 12.5, flex: 1 }}>{d.doc_label}</span>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: `var(--${d.badge})` }} />
-                    </div>
-                    <div style={{ font: `500 10px/1.35 ${MONO}`, color: "var(--ink-3)", marginTop: 3 }}>{d.findings ? `${d.findings} finding${d.findings > 1 ? "s" : ""}` : "no findings"}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </Card>
-        </div>
-        <Card style={{ position: "sticky", top: 16 }}>
-          <Eyebrow>Decision</Eyebrow>
-          <div style={{ marginTop: 10, padding: 12, borderRadius: 10, background: "var(--panel-3)" }}>
-            <div style={{ font: `600 9.5px/1 ${MONO}`, letterSpacing: ".1em", color: "var(--ink-4)" }}>RECOMMENDED</div>
-            <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 18, marginTop: 6, color: `var(--${riskTone(sc.risk_level) === "pass" ? "pass" : riskTone(sc.risk_level) === "caution" ? "caution" : "fail"})` }}>{sc.recommended_outcome}</div>
-            <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>Rule that fired: {sc.rules_fired?.join("; ")}</div>
+    <div className="grid items-start gap-col lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-6">
+      {/* Left: the risk dial and the decision */}
+      <div className="flex min-w-0 flex-col gap-col lg:sticky lg:top-0">
+        <Card className="flex flex-col items-center gap-3 p-6">
+          <ScoreDial value={sc.risk_score} max={Math.max(100, sc.risk_score)} label={`${sc.risk_level} risk`} tone={tone === "pass" ? "pass" : tone} icon={tone === "pass" ? ShieldCheck : ShieldAlert} />
+          <p className="m-0 max-w-[32ch] text-center text-micro text-muted">Score from accepted and verified findings only. Leads and rejected findings do not count.</p>
+          <ul className="m-0 flex list-none flex-wrap justify-center gap-1.5 p-0">
+            <li><Badge tone="pass">{`${gc?.verified ?? 0} links verified`}</Badge></li>
+            {gc?.conflict ? <li><Badge tone="fail">{`${gc.conflict} broken`}</Badge></li> : null}
+            {gc?.missing ? <li><Badge tone="caution">{`${gc.missing} missing`}</Badge></li> : null}
+          </ul>
+        </Card>
+
+        <Card title="Decision">
+          <div className={cn("flex flex-col gap-1.5 rounded-box border p-3.5", tone === "pass" ? "border-ramp-3/20 bg-pass-tint/60" : tone === "caution" ? "border-caution/20 bg-caution-tint/60" : "border-danger/20 bg-danger-tint/60")}>
+            <Eyebrow>Recommended</Eyebrow>
+            <span className={cn("text-section font-medium", tone === "pass" ? "text-ramp-2" : tone === "caution" ? "text-caution" : "text-danger")}>{sc.recommended_outcome}</span>
+            <span className="text-micro text-slate">Rule that fired: {sc.rules_fired?.join("; ")}</span>
           </div>
+
           {sc.document_requests?.length > 0 && (
-            <div style={{ marginTop: 12 }}>
+            <div className="mt-4 flex flex-col gap-2">
               <Eyebrow>To resolve open items, request</Eyebrow>
-              <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.55 }}>
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
                 {sc.document_requests.map((r, i) => (
-                  <li key={i}>{r}</li>
+                  <li key={i} className="flex items-start gap-2 rounded-box border border-hairline bg-page px-3 py-2 text-micro leading-[1.5] text-pine">
+                    <FileQuestion aria-hidden className="mt-0.5 size-3.5 shrink-0 text-caution" strokeWidth={1.8} />
+                    {r}
+                  </li>
                 ))}
               </ul>
             </div>
           )}
+
           {dec ? (
-            <div style={{ marginTop: 14, padding: 12, borderRadius: 10, border: "1px solid var(--accent-line)", background: "var(--accent-tint)" }}>
-              <div style={{ font: `600 9.5px/1 ${MONO}`, letterSpacing: ".1em", color: "var(--accent)" }}>FINAL · SIGNED</div>
-              <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 17, marginTop: 6 }}>{dec.final_outcome}</div>
-              <div style={{ fontSize: 12.5, color: "var(--ink-2)", marginTop: 6 }}>
+            <div className="mt-4 flex flex-col gap-2 rounded-box bg-pine p-4 text-white">
+              <span className="inline-flex items-center gap-1.5 text-micro tracking-[0.564px] text-lime uppercase">
+                <BadgeCheck aria-hidden className="size-3.5" strokeWidth={2} /> Final · signed
+              </span>
+              <span className="text-section font-medium">{dec.final_outcome}</span>
+              <span className="text-micro text-white/70">
                 {dec.signed_by} · {new Date(dec.signed_at * 1000).toLocaleString()}
-                {dec.override && <Badge tone="caution" style={{ marginLeft: 6 }}>OVERRIDE</Badge>}
-              </div>
-              {dec.rationale && <div style={{ fontSize: 12.5, marginTop: 6 }}>{dec.rationale}</div>}
-              <Btn kind="primary" style={{ marginTop: 12, width: "100%" }} onClick={() => go("report")}>
+              </span>
+              {dec.override && <Badge tone="caution" className="w-fit">Override of the recommendation</Badge>}
+              {dec.rationale && <p className="m-0 text-micro leading-[1.5] text-white/85">{dec.rationale}</p>}
+              <Btn kind="primary" className="mt-2 w-full" iconRight={ArrowRight} onClick={() => go("report")}>
                 View case report
               </Btn>
             </div>
           ) : (
-            <div style={{ marginTop: 14 }}>
+            <div className="mt-4 flex flex-col gap-2.5">
               <Eyebrow>Your decision</Eyebrow>
-              <select value={outcome} onChange={(e) => setOutcome(e.target.value)} style={{ marginTop: 8, width: "100%", height: 38, borderRadius: 9, border: "1px solid var(--line-2)", background: "var(--panel-2)", color: "var(--ink)", padding: "0 10px", fontSize: 13 }}>
+              <SelectBox value={outcome} onChange={(e) => setOutcome(e.target.value)} className="w-full">
                 {OUTCOMES.map((o) => (
                   <option key={o}>{o}</option>
                 ))}
-              </select>
-              <textarea value={rationale} onChange={(e) => setRationale(e.target.value)} placeholder={outcome === sc.recommended_outcome ? "Rationale (optional)" : "Rationale (required when you override the recommendation)"} style={{ marginTop: 8, width: "100%", minHeight: 70, padding: 10, borderRadius: 9, border: "1px solid var(--line-2)", background: "var(--panel-2)", color: "var(--ink)", fontSize: 13 }} />
-              <input value={signer} onChange={(e) => setSigner(e.target.value)} placeholder="Signed by" style={{ marginTop: 8, width: "100%", height: 36, padding: "0 10px", borderRadius: 9, border: "1px solid var(--line-2)", background: "var(--panel-2)", color: "var(--ink)", fontSize: 13 }} />
-              {err && <div style={{ color: "var(--fail)", fontSize: 12.5, marginTop: 6 }}>{err}</div>}
-              <Btn kind="primary" disabled={busy} style={{ marginTop: 10, width: "100%", height: 40 }} onClick={sign}>
+              </SelectBox>
+              {override && <span className="text-micro text-caution">This overrides the recommendation, so a rationale is required.</span>}
+              <TextArea value={rationale} onChange={(e) => setRationale(e.target.value)} placeholder={override ? "Rationale (required)" : "Rationale (optional)"} />
+              <Input icon={PenLine} value={signer} onChange={(e) => setSigner(e.target.value)} placeholder="Signed by" />
+              {err && <p className="m-0 rounded-box bg-danger-tint px-3 py-2 text-micro text-danger">{err}</p>}
+              <Btn kind="dark" size="lg" busy={busy} className="w-full" onClick={sign}>
                 Sign decision and close case
               </Btn>
-              <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 8 }}>The case and its audit log are sealed when you sign.</div>
+              <p className="m-0 text-center text-micro text-muted">The case and its audit log are sealed when you sign.</p>
             </div>
           )}
+        </Card>
+      </div>
+
+      {/* Right: what was found */}
+      <div className="flex min-w-0 flex-col gap-col">
+        <div className="vv-kpi grid grid-cols-2 gap-col xl:grid-cols-4">
+          <Kpi label="Findings" value={(sc.counted_findings || []).length} icon={ShieldAlert} sub="accepted or verified" />
+          <Kpi label="Links verified" value={gc?.verified ?? 0} tone="pass" icon={Link2} sub="relationships that check out" />
+          <Kpi label="Links broken" value={gc?.conflict ?? 0} tone={gc?.conflict ? "fail" : undefined} icon={Unlink} sub="conflicting facts" />
+          <Kpi label="Missing" value={gc?.missing ?? 0} tone={gc?.missing ? "caution" : undefined} icon={CircleSlash} sub="documents or links absent" />
+        </div>
+
+        <Card title="Findings by severity" action={<Btn kind="ghost" iconRight={ArrowRight} onClick={() => go("findings")}>Review findings</Btn>}>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {sevs.map((s) => (
+              <button key={s} type="button" onClick={() => go("findings")} className="flex cursor-pointer flex-col gap-2 rounded-box border border-hairline bg-page p-3 text-left transition-colors hover:border-pine/20 hover:bg-hover-light">
+                <SevChip s={s} />
+                <span className={cn("tnum text-stat font-medium", (sc.by_severity?.[s] ?? 0) === 0 ? "text-pine/30" : s === "critical" || s === "high" ? "text-danger" : s === "medium" ? "text-caution" : "text-pine")}>{sc.by_severity?.[s] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+          {c.narrative && (
+            <div className="mt-4 flex flex-col gap-2 rounded-box border border-hairline bg-page p-4">
+              <Eyebrow>Lead investigator&apos;s summary</Eyebrow>
+              <p className="m-0 text-read whitespace-pre-wrap text-pine/90">{c.narrative}</p>
+            </div>
+          )}
+          {c.leads.length > 0 && (
+            <div className="mt-4 flex flex-col gap-2">
+              <Eyebrow>Open leads · not counted in the score</Eyebrow>
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                {c.leads.map((l, i) => (
+                  <li key={i} className="rounded-box border border-dashed border-edge bg-page px-3 py-2 text-micro leading-[1.5] text-slate">
+                    {l.note}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+
+        <Card title="Documents" count={c.documents_detail.length} action={<Btn kind="ghost" iconRight={ArrowRight} onClick={() => go("documents")}>Open viewer</Btn>}>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2.5">
+            {c.documents_detail.map((d) => {
+              const t = d.badge === "pass" ? "pass" : d.badge === "caution" ? "caution" : "fail";
+              return (
+                <button key={d.doc_id} type="button" onClick={() => go("documents", `&doc=${d.doc_id}`)} className={cn("group flex cursor-pointer flex-col overflow-hidden rounded-box border bg-page text-left transition-[border-color,box-shadow] hover:shadow-[0_8px_24px_-12px_rgb(14_50_40/0.25)]", t === "pass" ? "border-hairline hover:border-pine/25" : t === "caution" ? "border-caution/35" : "border-danger/40")}>
+                  <span className="relative block h-[128px] overflow-hidden border-b border-hairline bg-white">
+                    {d.thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={fileUrl(c.id, d.thumb)} alt="" className="size-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.03]" />
+                    ) : (
+                      <FileText aria-hidden className="absolute inset-0 m-auto size-8 text-icon-soft" strokeWidth={1.4} />
+                    )}
+                    {d.findings > 0 && (
+                      <span className={cn("absolute top-2 right-2 rounded-pill px-2 py-0.5 text-[10.5px] font-semibold", t === "caution" ? "bg-caution text-white" : "bg-danger text-white")}>
+                        {d.findings} finding{d.findings > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex flex-col gap-0.5 px-3 py-2.5">
+                    <span className="truncate text-body font-medium text-pine">{d.doc_label}</span>
+                    <span className={cn("text-micro", d.findings ? (t === "caution" ? "text-caution" : "text-danger") : "text-positive")}>{d.findings ? "needs attention" : "no findings"}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </Card>
       </div>
     </div>
@@ -146,5 +181,5 @@ export function Overview({ c, onChange }: { c: CaseDetail; onChange: () => void 
 }
 
 export function StateDot({ s }: { s: "verified" | "conflict" | "missing" | "unverifiable" }) {
-  return <Badge tone={STATE_TONE[s]}>{s.toUpperCase()}</Badge>;
+  return <Badge tone={STATE_TONE[s]}>{s}</Badge>;
 }

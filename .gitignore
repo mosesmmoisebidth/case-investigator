@@ -13,8 +13,8 @@ private/
 licenses/
 *.license
 # runtime data
-cases/
-data/
+/cases/
+/data/
 *.log
 # model weights
 *.pth
@@ -22,3 +22,4 @@ data/
 *.onnx
 *.pdparams
 tests/_fixtures/
+frontend/tsconfig.tsbuildinfo

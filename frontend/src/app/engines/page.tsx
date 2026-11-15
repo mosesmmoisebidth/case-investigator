@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Bot, Cpu, FileSearch, Fingerprint, GitBranch, ScanText, ShieldCheck, type LucideIcon } from "lucide-react";
 import { api, type EngineInfo } from "@/lib/api";
-import { Badge, Card, DISPLAY, Eyebrow, MONO, Page, PageHeader, Spinner } from "@/components/ui/kit";
+import { Loading, Page, PageHeader } from "@/components/ui/kit";
+import { cn } from "@/lib/utils";
 
-const LAYER_TONE: Record<string, "accent" | "caution" | "fail" | "neutral" | "pass"> = { Intake: "neutral", Extraction: "neutral", Integrity: "fail", Verification: "caution", Relationships: "accent" };
+const LAYER: Record<string, { icon: LucideIcon; chip: string }> = {
+  Intake: { icon: FileSearch, chip: "bg-well text-inert" },
+  Extraction: { icon: ScanText, chip: "bg-info-tint text-info" },
+  Integrity: { icon: Fingerprint, chip: "bg-danger-tint text-danger" },
+  Verification: { icon: ShieldCheck, chip: "bg-caution-tint text-caution" },
+  Relationships: { icon: GitBranch, chip: "bg-lime-tint text-pine" },
+};
 
 export default function Engines() {
   const [rows, setRows] = useState<EngineInfo[] | null>(null);
@@ -13,36 +21,56 @@ export default function Engines() {
     api.engines().then(setRows);
     api.health().then(setH).catch(() => setH(null));
   }, []);
+  const layers = rows ? Array.from(new Set(rows.map((r) => r.layer))) : [];
   return (
     <Page>
       <PageHeader title="Engines" sub="VeriSec engines wrapped as tools. Each one saves its raw output to the case evidence folder and returns only the evidence path and a short summary, so every finding is traceable." />
-      <Card style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ font: `600 9px/1 ${MONO}`, padding: "4px 5px", borderRadius: 5, border: "1px solid var(--accent-line)", background: "var(--accent-tint)", color: "var(--accent)" }}>AI</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 650, fontSize: 13.5 }}>Lead investigator and document analysts (LangChain deep agents)</div>
-          <div style={{ font: `500 11px/1.4 ${MONO}`, color: "var(--ink-3)", marginTop: 3 }}>{h ? h.model : "checking"}</div>
+      <section className="flex flex-wrap items-center gap-4 rounded-shell bg-pine p-5 text-white">
+        <span className="grid size-11 shrink-0 place-items-center rounded-pill bg-lime text-pine">
+          <Bot aria-hidden className="size-5" strokeWidth={1.7} />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-section font-medium">Lead investigator and document analysts</span>
+          <span className="text-micro text-white/65">Plans the case, delegates one analyst per document, and only reports findings an engine can prove.</span>
         </div>
-        <Badge tone={h?.ai ? "pass" : "caution"}>{h?.ai ? "ON" : "DETERMINISTIC MODE"}</Badge>
-      </Card>
+        <span className={cn("inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-micro font-medium", h?.ai ? "bg-lime text-pine" : "bg-white/10 text-white")}>
+          <span className={cn("size-1.5 rounded-pill", h?.ai ? "bg-pine" : "bg-caution")} />
+          {h == null ? "Checking" : h.ai ? "AI on" : "Deterministic mode"}
+        </span>
+      </section>
       {!rows ? (
-        <Card style={{ display: "flex", justifyContent: "center", padding: 40 }}>
-          <Spinner size={22} />
-        </Card>
+        <Loading label="Loading engines" />
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
-          {rows.map((e) => (
-            <Card key={e.id}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ font: `600 9px/1 ${MONO}`, padding: "4px 5px", borderRadius: 5, border: "1px solid var(--line-2)", color: "var(--ink-3)", background: "var(--panel-3)" }}>{e.code}</span>
-                <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 15, flex: 1 }}>{e.name}</span>
-                <Badge tone={LAYER_TONE[e.layer] || "neutral"}>{e.layer.toUpperCase()}</Badge>
+        layers.map((layer) => {
+          const L = LAYER[layer] || { icon: Cpu, chip: "bg-well text-inert" };
+          const I = L.icon;
+          const items = rows.filter((r) => r.layer === layer);
+          return (
+            <section key={layer} className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-2">
+                <span className={cn("grid size-7 place-items-center rounded-pill", L.chip)}>
+                  <I aria-hidden className="size-3.5" strokeWidth={1.9} />
+                </span>
+                <h2 className="m-0 text-section font-medium text-pine">{layer}</h2>
+                <span className="tnum rounded-pill bg-well px-2 py-0.5 text-micro text-slate">{items.length}</span>
               </div>
-              <div style={{ fontSize: 12.5, color: "var(--ink-2)", marginTop: 10, lineHeight: 1.5 }}>{e.does}</div>
-              <Eyebrow style={{ marginTop: 12 }}>Source</Eyebrow>
-              <div style={{ font: `500 11px/1.4 ${MONO}`, color: "var(--ink-3)", marginTop: 5 }}>{e.source}</div>
-            </Card>
-          ))}
-        </div>
+              <div className="grid gap-col md:grid-cols-2 2xl:grid-cols-3">
+                {items.map((e) => (
+                  <article key={e.id} className="flex flex-col gap-2.5 rounded-[20px] border border-edge bg-panel p-5">
+                    <header className="flex items-center gap-2">
+                      <span className="rounded-md bg-pine px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-[0.04em] text-lime">{e.code}</span>
+                      <h3 className="m-0 min-w-0 flex-1 truncate text-[15px] font-medium text-pine">{e.name}</h3>
+                    </header>
+                    <p className="m-0 flex-1 text-micro leading-[1.55] text-pine/80">{e.does}</p>
+                    <p className="m-0 truncate rounded-lg bg-page px-2.5 py-1.5 font-mono text-[10.5px] text-muted" title={e.source}>
+                      {e.source}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          );
+        })
       )}
     </Page>
   );

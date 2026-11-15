@@ -12,47 +12,48 @@ import "@xyflow/react/dist/style.css";
 import { Background, Controls, Handle, MarkerType, Position, ReactFlow, useNodesState, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useRouter } from "next/navigation";
 import { memo, useEffect, useMemo, useState } from "react";
+import { ArrowRight, Banknote, Building2, FileQuestion, FileText, Landmark, MapPin, User, X, type LucideIcon } from "lucide-react";
 import { api, fmtValue, STATE_LABEL, STATE_TONE, type BlueprintRule, type DocDetail, type EdgeState, type Flow, type GEdge, type GNode, type Graph, type Ref } from "@/lib/api";
-import { Badge, Btn, Card, DISPLAY, Eyebrow, MONO, Spinner } from "@/components/ui/kit";
+import { Badge, Btn, Card, Eyebrow, FilterChip, IconBtn, Loading, Tag } from "@/components/ui/kit";
+import { cn } from "@/lib/utils";
 
-const STATE_COLOR: Record<EdgeState, string> = { verified: "var(--pass)", conflict: "var(--fail)", missing: "var(--caution)", unverifiable: "var(--ink-4)" };
-const KIND_TAG: Record<GNode["kind"], string> = { document: "DOC", person: "PER", organisation: "ORG", address: "ADR", account: "ACC", money: "MNY", missing: "MIS" };
+const STATE_COLOR: Record<EdgeState, string> = { verified: "#27634d", conflict: "#c0362c", missing: "#b7791f", unverifiable: "#8c8c8c" };
 const FLOWS: Flow[] = ["identity", "address", "money", "time"];
 const STATES: EdgeState[] = ["verified", "conflict", "missing", "unverifiable"];
 
 type NData = { n: GNode; worst?: EdgeState; badge?: "pass" | "caution" | "fail"; selected?: boolean; dim?: boolean };
 
+const KIND_ICON: Record<GNode["kind"], LucideIcon> = { document: FileText, person: User, organisation: Building2, address: MapPin, account: Landmark, money: Banknote, missing: FileQuestion };
+
 const CaseNode = memo(function CaseNode({ data }: NodeProps<Node<NData>>) {
   const { n, worst, badge, selected, dim } = data;
   const missing = n.kind === "missing";
   const isApplicant = n.kind === "person" && n.role === "applicant";
-  const border = missing ? "1.5px dashed var(--caution)" : selected ? "1.5px solid var(--accent)" : isApplicant ? "1.5px solid var(--accent)" : "1px solid var(--line-2)";
-  const stripe = worst ? STATE_COLOR[worst] : "transparent";
+  const I = KIND_ICON[n.kind];
   return (
     <div
-      style={{
-        width: n.kind === "document" ? 210 : 220,
-        padding: "9px 11px 9px 13px",
-        borderRadius: 10,
-        border,
-        background: missing ? "var(--caution-tint)" : isApplicant ? "var(--accent-tint)" : "var(--panel-2)",
-        boxShadow: selected ? "var(--shadow-lg)" : "var(--shadow)",
-        opacity: dim ? 0.35 : 1,
-        position: "relative",
-        transition: "opacity .2s",
-      }}
+      className={cn(
+        "relative flex items-center gap-2.5 rounded-box border bg-page py-2 pr-3 pl-2 transition-[opacity,box-shadow]",
+        n.kind === "document" ? "w-[214px]" : "w-[224px]",
+        missing ? "border-dashed border-caution/60 bg-caution-tint/60" : selected ? "border-pine shadow-[0_10px_28px_-12px_rgb(14_50_40/0.45)] ring-2 ring-lime" : isApplicant ? "border-pine/40 bg-lime-tint/70" : "border-edge shadow-[0_1px_2px_0_rgb(10_13_18/0.05)]",
+        dim && "opacity-30",
+      )}
     >
-      <span style={{ position: "absolute", left: 0, top: 8, bottom: 8, width: 3, borderRadius: 3, background: stripe }} />
+      {worst && worst !== "verified" && <span aria-hidden className="absolute top-2 bottom-2 left-0 w-[3px] rounded-r-full" style={{ background: STATE_COLOR[worst] }} />}
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-        <span style={{ font: `600 8.5px/1 ${MONO}`, letterSpacing: ".05em", padding: "3px 4px", borderRadius: 4, border: "1px solid var(--line-2)", color: missing ? "var(--caution)" : "var(--ink-3)", background: "var(--panel-3)" }}>{KIND_TAG[n.kind]}</span>
-        <span style={{ fontWeight: 650, fontSize: 12.5, color: missing ? "var(--caution)" : "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{n.label}</span>
-        {badge && badge !== "pass" && <span style={{ width: 7, height: 7, borderRadius: "50%", background: `var(--${badge})`, flex: "none" }} />}
-      </div>
-      <div style={{ font: `500 10px/1.35 ${MONO}`, color: "var(--ink-3)", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {n.kind === "document" ? `${n.doc}${n.date ? " · " + n.date : ""}` : n.kind === "money" ? `${n.sub || ""}${n.payer ? " · " + n.payer : ""}` : isApplicant ? "applicant" : n.role || (n.merged_from.length ? `${n.merged_from.length + 1} spellings merged` : `${n.docs.length} document${n.docs.length === 1 ? "" : "s"}`)}
-      </div>
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", missing ? "bg-caution/15 text-caution" : isApplicant ? "bg-pine text-lime" : n.kind === "document" ? "bg-well text-pine" : "bg-lime-tint text-pine")}>
+        <I aria-hidden className="size-4" strokeWidth={1.7} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex items-center gap-1.5">
+          <span className={cn("truncate text-[12.5px] leading-[1.3] font-medium", missing ? "text-caution" : "text-pine")}>{n.label}</span>
+          {badge && badge !== "pass" && <span aria-hidden className={cn("size-1.5 shrink-0 rounded-pill", badge === "caution" ? "bg-caution" : "bg-danger")} />}
+        </span>
+        <span className="truncate font-mono text-[9.5px] leading-[1.4] text-muted">
+          {n.kind === "document" ? `${n.doc}${n.date ? " · " + n.date : ""}` : n.kind === "money" ? `${n.sub || ""}${n.payer ? " · " + n.payer : ""}` : isApplicant ? "applicant" : n.role || (n.merged_from.length ? `${n.merged_from.length + 1} spellings merged` : `${n.docs.length} document${n.docs.length === 1 ? "" : "s"}`)}
+        </span>
+      </span>
     </div>
   );
 });
@@ -94,18 +95,18 @@ function layout(g: Graph): Record<string, { x: number; y: number }> {
 function RefBox({ title, r, onOpen }: { title: string; r?: Ref | null; onOpen: (r: Ref) => void }) {
   if (!r) return null;
   return (
-    <div style={{ flex: 1, minWidth: 0, border: "1px solid var(--line-2)", borderRadius: 9, padding: 10, background: "var(--panel-2)" }}>
+    <div className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-box border border-hairline bg-page p-3">
       <Eyebrow>{title}</Eyebrow>
-      <div style={{ fontWeight: 650, fontSize: 13, marginTop: 7, wordBreak: "break-word" }}>{fmtValue(r.value) || "(no value)"}</div>
-      <div style={{ font: `500 10.5px/1.45 ${MONO}`, color: "var(--ink-3)", marginTop: 5 }}>
+      <span className="text-body font-medium break-words text-pine">{fmtValue(r.value) || "(no value)"}</span>
+      <span className="font-mono text-[10.5px] leading-[1.45] text-muted">
         {r.doc}
         {r.field ? ` · ${r.field}` : ""}
         {r.page ? ` · p${r.page}` : ""}
-      </div>
-      {r.text && <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 4 }}>{r.text}</div>}
+      </span>
+      {r.text && <span className="text-micro text-slate">{r.text}</span>}
       {r.doc && (
-        <button onClick={() => onOpen(r)} style={{ marginTop: 8, border: "none", background: "none", padding: 0, color: "var(--accent)", fontWeight: 600, fontSize: 12 }}>
-          Open at this field →
+        <button type="button" onClick={() => onOpen(r)} className="mt-1 inline-flex w-fit cursor-pointer items-center gap-1 text-micro font-medium text-pine hover:underline">
+          Open at this field <ArrowRight aria-hidden className="size-3" strokeWidth={2} />
         </button>
       )}
     </div>
@@ -156,7 +157,7 @@ export function GraphView({ caseId, docs }: { caseId: string; docs: DocDetail[] 
         target: flip ? e.source : e.target,
         animated: e.state === "conflict" && on,
         label: on || e.state === "conflict" ? (e.state === "verified" ? e.relation : STATE_LABEL[e.state].toLowerCase() + ": " + e.relation) : undefined,
-        labelStyle: { fill: STATE_COLOR[e.state], fontWeight: 600, fontSize: 10.5, fontFamily: "IBM Plex Mono, monospace" },
+        labelStyle: { fill: STATE_COLOR[e.state], fontWeight: 600, fontSize: 10.5, fontFamily: "ui-monospace, monospace" },
         labelBgStyle: { fill: "var(--panel-2)", fillOpacity: 0.92 },
         labelBgPadding: [5, 3] as [number, number],
         labelBgBorderRadius: 4,
@@ -184,13 +185,8 @@ export function GraphView({ caseId, docs }: { caseId: string; docs: DocDetail[] 
     );
   }, [nodes, setRfNodes]);
 
-  if (!g)
-    return (
-      <Card style={{ display: "flex", justifyContent: "center", padding: 50 }}>
-        <Spinner size={22} />
-      </Card>
-    );
-  if (!g.nodes.length) return <Card style={{ padding: 30, textAlign: "center", color: "var(--ink-3)" }}>The graph appears when the investigation reaches the relationship step.</Card>;
+  if (!g) return <Loading label="Building the relationship graph" />;
+  if (!g.nodes.length) return <Card className="py-10 text-center text-body text-slate">The graph appears when the investigation reaches the relationship step.</Card>;
 
   const c = g.counts;
   const missingDocs = g.nodes.filter((n) => n.kind === "missing").length;
@@ -199,44 +195,39 @@ export function GraphView({ caseId, docs }: { caseId: string; docs: DocDetail[] 
   const nodeEdges = node ? g.edges.filter((e) => e.source === node.id || e.target === node.id) : [];
   const openRef = (r: Ref) => router.push(`/cases/${caseId}?tab=documents&doc=${r.doc}${r.page ? `&page=${r.page}` : ""}${r.bbox ? `&hl=${r.bbox.map((v) => Math.round(v)).join(",")}` : ""}${r.field ? `&field=${r.field}` : ""}`);
   const nodeLabel = (id: string) => g.nodes.find((n) => n.id === id)?.label || id;
+  const held = bp.filter((r) => r.status === "verified").length;
 
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-        <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 18 }}>
-          {g.applicant} case: {c.verified} link{c.verified === 1 ? "" : "s"} verified, {c.conflict} broken, {c.missing} missing{missingDocs ? `, ${missingDocs} missing document${missingDocs === 1 ? "" : "s"}` : ""}
-        </div>
-        <div style={{ color: "var(--ink-3)", fontSize: 12.5 }}>Documents on the left state facts about the people, places, accounts and money on the right.</div>
+    <div className="flex flex-col gap-col">
+      <div className="flex min-w-0 flex-col gap-1">
+        <h2 className="m-0 text-section font-medium text-pine">
+          {c.verified} link{c.verified === 1 ? "" : "s"} verified, <span className={c.conflict ? "text-danger" : undefined}>{c.conflict} broken</span>, <span className={c.missing ? "text-caution" : undefined}>{c.missing} missing</span>
+          {missingDocs ? `, ${missingDocs} missing document${missingDocs === 1 ? "" : "s"}` : ""}
+        </h2>
+        <p className="m-0 text-micro text-slate">Documents on the left state facts about the people, places, accounts and money on the right. Click a line to see both values and their sources.</p>
       </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
+      <div className="flex flex-wrap items-center gap-1.5 rounded-[20px] border border-hairline bg-panel p-1.5">
         {STATES.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStates((x) => ({ ...x, [s]: !x[s] }))}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 10px", borderRadius: 8, border: "1px solid " + (states[s] ? STATE_COLOR[s] : "var(--line-2)"), background: states[s] ? "var(--panel-2)" : "var(--panel-3)", color: states[s] ? "var(--ink)" : "var(--ink-4)", fontSize: 12, fontWeight: 600 }}
-          >
-            <span style={{ width: 14, height: 0, borderTop: `2.5px ${s === "missing" ? "dashed" : s === "unverifiable" ? "dotted" : "solid"} ${STATE_COLOR[s]}` }} />
-            {STATE_LABEL[s]} <span style={{ font: `600 10.5px/1 ${MONO}`, color: "var(--ink-3)" }}>{c[s]}</span>
-          </button>
+          <FilterChip key={s} on={states[s]} onClick={() => setStates((x) => ({ ...x, [s]: !x[s] }))}>
+            <span aria-hidden className="w-4 border-t-[2.5px]" style={{ borderTopStyle: s === "missing" ? "dashed" : s === "unverifiable" ? "dotted" : "solid", borderTopColor: states[s] ? STATE_COLOR[s] : "var(--color-track)" }} />
+            {STATE_LABEL[s]}
+            <span className="tnum text-muted">{c[s]}</span>
+          </FilterChip>
         ))}
-        <span style={{ width: 1, height: 22, background: "var(--line-2)", margin: "0 4px" }} />
+        <span aria-hidden className="mx-1 h-5 w-px bg-edge" />
         {FLOWS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFlows((x) => ({ ...x, [f]: !x[f] }))}
-            style={{ height: 30, padding: "0 10px", borderRadius: 8, border: "1px solid " + (flows[f] ? "var(--accent)" : "var(--line-2)"), background: flows[f] ? "var(--accent-tint)" : "var(--panel-3)", color: flows[f] ? "var(--accent)" : "var(--ink-4)", fontSize: 12, fontWeight: 600, textTransform: "capitalize" }}
-          >
-            {f} flow
-          </button>
+          <FilterChip key={f} on={flows[f]} onClick={() => setFlows((x) => ({ ...x, [f]: !x[f] }))} className="capitalize">
+            {f}
+          </FilterChip>
         ))}
         {focusRule && (
-          <Btn kind="soft" onClick={() => setFocusRule(null)} style={{ height: 30 }}>
-            Showing one rule · clear
+          <Btn kind="dark" size="sm" icon={X} className="ml-auto h-8" onClick={() => setFocusRule(null)}>
+            One rule shown
           </Btn>
         )}
       </div>
-      <div className="vv-col2" style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 14 }}>
-        <Card pad={0} style={{ height: 620, overflow: "hidden" }}>
+      <div className="grid gap-col xl:grid-cols-[minmax(0,1fr)_380px]">
+        <Card pad={0} className="h-[640px] overflow-hidden bg-page">
           <ReactFlow
             nodes={rfNodes}
             onNodesChange={onNodesChange}
@@ -261,86 +252,103 @@ export function GraphView({ caseId, docs }: { caseId: string; docs: DocDetail[] 
               setSelNode(null);
             }}
           >
-            <Background color="var(--line-2)" gap={22} size={1} />
+            <Background color="#e1e5eb" gap={22} size={1.2} />
             <Controls showInteractive={false} position="bottom-left" />
           </ReactFlow>
         </Card>
-        <Card style={{ height: 620, overflowY: "auto" }}>
+        <Card className="h-[640px] overflow-y-auto">
           {edge ? (
-            <div className="vv-fade">
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Badge tone={STATE_TONE[edge.state]}>{STATE_LABEL[edge.state].toUpperCase()}</Badge>
-                <Badge tone="neutral">{edge.flow.toUpperCase()} FLOW</Badge>
-                <button onClick={() => setSelEdge(null)} style={{ marginLeft: "auto", border: "none", background: "none", color: "var(--ink-3)" }}>
-                  ×
-                </button>
+            <div className="vv-fade flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Badge tone={STATE_TONE[edge.state]}>{STATE_LABEL[edge.state]}</Badge>
+                <Tag className="capitalize">{edge.flow} flow</Tag>
+                <IconBtn icon={X} label="Close" className="ml-auto" onClick={() => setSelEdge(null)} />
               </div>
-              <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 15.5, marginTop: 12 }}>
-                {nodeLabel(edge.source)} <span style={{ color: "var(--ink-4)" }}>{edge.relation}</span> {nodeLabel(edge.target)}
-              </div>
-              <div style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 8, lineHeight: 1.5 }}>{edge.explain}</div>
-              {edge.rule && <div style={{ font: `500 10.5px/1.4 ${MONO}`, color: "var(--ink-3)", marginTop: 8 }}>rule: {bp.find((r) => r.rule === edge.rule)?.label || edge.rule}</div>}
-              {edge.score != null && <div style={{ font: `500 10.5px/1.4 ${MONO}`, color: "var(--ink-3)" }}>match score: {edge.score}</div>}
+              <h3 className="m-0 text-section leading-[1.4] font-medium text-pine">
+                {nodeLabel(edge.source)} <span className="font-normal text-muted">{edge.relation}</span> {nodeLabel(edge.target)}
+              </h3>
+              <p className="m-0 text-read text-pine/85">{edge.explain}</p>
+              {(edge.rule || edge.score != null) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {edge.rule && <Tag>Rule: {bp.find((r) => r.rule === edge.rule)?.label || edge.rule}</Tag>}
+                  {edge.score != null && <Tag mono>match {edge.score}</Tag>}
+                </div>
+              )}
               {(edge.a || edge.b) && (
-                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <div className="flex gap-2">
                   <RefBox title="This side" r={edge.a} onOpen={openRef} />
                   <RefBox title="Other side" r={edge.b} onOpen={openRef} />
                 </div>
               )}
             </div>
           ) : node ? (
-            <div className="vv-fade">
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Badge tone={node.kind === "missing" ? "caution" : "accent"}>{node.kind.toUpperCase()}</Badge>
-                <button onClick={() => setSelNode(null)} style={{ marginLeft: "auto", border: "none", background: "none", color: "var(--ink-3)" }}>
-                  ×
-                </button>
+            <div className="vv-fade flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Badge tone={node.kind === "missing" ? "caution" : "accent"} glyph={false}>
+                  {node.kind}
+                </Badge>
+                <IconBtn icon={X} label="Close" className="ml-auto" onClick={() => setSelNode(null)} />
               </div>
-              <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 16, marginTop: 10 }}>{node.label}</div>
+              <h3 className="m-0 text-section font-medium text-pine">{node.label}</h3>
               {node.kind === "document" && node.doc && (
-                <Btn kind="soft" style={{ marginTop: 10, height: 30 }} onClick={() => router.push(`/cases/${caseId}?tab=documents&doc=${node.doc}`)}>
+                <Btn kind="soft" icon={FileText} className="w-fit" onClick={() => router.push(`/cases/${caseId}?tab=documents&doc=${node.doc}`)}>
                   Open document
                 </Btn>
               )}
               {node.merged_from.length > 0 && (
-                <div style={{ marginTop: 14 }}>
-                  <Eyebrow>Merged spellings (with reason)</Eyebrow>
+                <div className="flex flex-col gap-1.5">
+                  <Eyebrow>Merged spellings, with reason</Eyebrow>
                   {node.merged_from.map((m, i) => (
-                    <div key={i} style={{ fontSize: 12.5, marginTop: 7, padding: 8, borderRadius: 8, background: "var(--panel-3)" }}>
-                      <b>{m.value}</b> <span style={{ color: "var(--ink-3)" }}>on {m.doc}</span>
-                      <div style={{ font: `500 10.5px/1.4 ${MONO}`, color: "var(--ink-3)", marginTop: 3 }}>{m.reason}</div>
+                    <div key={i} className="flex flex-col gap-0.5 rounded-box border border-hairline bg-page px-3 py-2">
+                      <span className="text-body text-pine">
+                        <span className="font-medium">{m.value}</span> <span className="text-muted">on {m.doc}</span>
+                      </span>
+                      <span className="font-mono text-[10.5px] text-muted">{m.reason}</span>
                     </div>
                   ))}
                 </div>
               )}
-              <div style={{ marginTop: 14 }}>
-                <Eyebrow>Links ({nodeEdges.length})</Eyebrow>
+              <div className="flex flex-col gap-1.5">
+                <Eyebrow>Links · {nodeEdges.length}</Eyebrow>
                 {nodeEdges.map((e) => (
-                  <button key={e.id} onClick={() => setSelEdge(e.id)} style={{ display: "flex", gap: 8, alignItems: "flex-start", width: "100%", textAlign: "left", border: "none", background: "none", padding: "8px 0", borderBottom: "1px solid var(--line-3)", color: "var(--ink-2)", fontSize: 12.5 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", marginTop: 5, background: STATE_COLOR[e.state], flex: "none" }} />
+                  <button key={e.id} type="button" onClick={() => setSelEdge(e.id)} className="flex cursor-pointer items-start gap-2.5 rounded-box border border-hairline bg-page px-3 py-2 text-left text-micro leading-[1.5] text-pine/85 transition-colors hover:bg-hover-light">
+                    <span aria-hidden className="mt-1 size-2 shrink-0 rounded-pill" style={{ background: STATE_COLOR[e.state] }} />
                     <span>{e.explain}</span>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            <div>
-              <Eyebrow>Workflow blueprint · {bp.length} rules</Eyebrow>
-              <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6, marginBottom: 10 }}>What a genuine case must contain, checked link by link. Click a rule to see only its links.</div>
-              {bp.map((r) => (
-                <button
-                  key={r.rule}
-                  onClick={() => setFocusRule(focusRule === r.rule ? null : r.rule)}
-                  style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 10px", marginBottom: 6, borderRadius: 9, border: "1px solid " + (focusRule === r.rule ? "var(--accent)" : "var(--line)"), background: focusRule === r.rule ? "var(--accent-tint)" : "var(--panel-2)", color: "var(--ink)" }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: STATE_COLOR[r.status], flex: "none" }} />
-                    <span style={{ fontWeight: 650, fontSize: 12.5, flex: 1 }}>{r.label}</span>
-                    <span style={{ font: `600 9px/1 ${MONO}`, color: "var(--ink-4)" }}>{r.flow.toUpperCase()}</span>
-                  </div>
-                  <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 5, lineHeight: 1.4 }}>{r.detail}</div>
-                </button>
-              ))}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="m-0 text-section font-medium text-pine">Workflow blueprint</h3>
+                  <span className="tnum rounded-pill bg-well px-2 py-0.5 text-micro text-slate">
+                    {held}/{bp.length} hold
+                  </span>
+                </div>
+                <p className="m-0 text-micro text-slate">What a genuine case must contain, checked link by link. Click a rule to see only its links.</p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {bp.map((r) => {
+                  const on = focusRule === r.rule;
+                  return (
+                    <button
+                      key={r.rule}
+                      type="button"
+                      onClick={() => setFocusRule(on ? null : r.rule)}
+                      className={cn("flex cursor-pointer flex-col gap-1 rounded-box border px-3 py-2.5 text-left transition-colors", on ? "border-pine/30 bg-lime-tint/60" : "border-hairline bg-page hover:bg-hover-light")}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span aria-hidden className="size-2 shrink-0 rounded-pill" style={{ background: STATE_COLOR[r.status] }} />
+                        <span className="min-w-0 flex-1 text-body font-medium text-pine">{r.label}</span>
+                        <span className="text-[10px] tracking-[0.5px] text-muted uppercase">{r.flow}</span>
+                      </span>
+                      <span className="pl-4 text-micro leading-[1.45] text-slate">{r.detail}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </Card>

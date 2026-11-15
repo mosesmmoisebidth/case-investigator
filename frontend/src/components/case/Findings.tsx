@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, fileUrl, fmtValue, SEV_TONE, type Finding, type Score } from "@/lib/api";
-import { Badge, Btn, Card, DISPLAY, Eyebrow, MONO, Spinner } from "@/components/ui/kit";
+import { Check, ExternalLink, FileSearch, MessageCircleQuestion, Send, ShieldAlert, X } from "lucide-react";
+import { api, fileUrl, fmtValue, type Finding, type Score } from "@/lib/api";
+import { Badge, Btn, Card, Eyebrow, Input, Loading, SevChip, Switch, Tag, TextArea } from "@/components/ui/kit";
+import { cn } from "@/lib/utils";
 
 const isImg = (p: string) => /\.(png|jpe?g)$/i.test(p);
 
@@ -23,21 +25,28 @@ function EvidenceItem({ caseId, path }: { caseId: string; path: string }) {
       .catch(() => setTxt("(unreadable)"));
   }, [caseId, path]);
   return (
-    <div style={{ border: "1px solid var(--line)", borderRadius: 9, overflow: "hidden", background: "var(--panel-2)" }}>
-      <div style={{ font: `600 10px/1 ${MONO}`, color: "var(--ink-3)", padding: "8px 10px", borderBottom: "1px solid var(--line)", display: "flex" }}>
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{path}</span>
-        <a href={fileUrl(caseId, path)} target="_blank" rel="noreferrer" style={{ color: "var(--accent)", textDecoration: "none" }}>
-          open
+    <figure className="m-0 flex min-w-0 flex-col overflow-hidden rounded-box border border-hairline bg-page">
+      <figcaption className="flex items-center gap-2 border-b border-hairline px-3 py-2">
+        <span className="min-w-0 flex-1 truncate font-mono text-[10.5px] text-muted">{path}</span>
+        <a href={fileUrl(caseId, path)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-micro font-medium text-pine hover:underline">
+          Open <ExternalLink aria-hidden className="size-3" strokeWidth={2} />
         </a>
-      </div>
+      </figcaption>
       {isImg(path) ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={fileUrl(caseId, path)} alt={path} style={{ width: "100%", display: "block", maxHeight: 420, objectFit: "contain", background: "#fff" }} />
+        <img src={fileUrl(caseId, path)} alt={path} className="block max-h-[420px] w-full bg-white object-contain" />
       ) : (
-        <pre style={{ margin: 0, padding: 10, maxHeight: 220, overflow: "auto", font: `500 10.5px/1.45 ${MONO}`, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>{txt ?? "loading"}</pre>
+        <pre className="m-0 max-h-[220px] overflow-auto bg-code-bg px-3 py-2.5 font-mono text-[10.5px] leading-[1.5] whitespace-pre-wrap text-code-ink">{txt ?? "loading"}</pre>
       )}
-    </div>
+    </figure>
   );
+}
+
+function StatusTag({ s }: { s: Finding["status"] }) {
+  if (s === "accepted") return <Badge tone="pass">Accepted</Badge>;
+  if (s === "rejected") return <Badge tone="neutral">Rejected</Badge>;
+  if (s === "lead") return <Tag>Lead</Tag>;
+  return <Tag active>To review</Tag>;
 }
 
 export function Findings({ caseId, locked, onScore }: { caseId: string; locked: boolean; onScore: (s: Score) => void }) {
@@ -58,12 +67,7 @@ export function Findings({ caseId, locked, onScore }: { caseId: string; locked: 
     });
   }, [caseId]);
 
-  if (!F)
-    return (
-      <Card style={{ display: "flex", justifyContent: "center", padding: 50 }}>
-        <Spinner size={22} />
-      </Card>
-    );
+  if (!F) return <Loading label="Loading findings" />;
   const list = F.filter((f) => showLeads || f.status !== "lead");
   const f = F.find((x) => x.id === sel);
 
@@ -99,144 +103,169 @@ export function Findings({ caseId, locked, onScore }: { caseId: string; locked: 
     }
   };
 
+  const total = F.filter((x) => x.status !== "lead").length;
   const reviewed = F.filter((x) => x.status === "accepted" || x.status === "rejected").length;
+  const openDoc = (x: Finding) => router.push(`/cases/${caseId}?tab=documents&doc=${x.doc}${x.page ? `&page=${x.page}` : ""}${x.bbox ? `&hl=${x.bbox.map((v) => Math.round(v)).join(",")}` : ""}${x.field ? `&field=${x.field}` : ""}`);
 
   return (
-    <div className="vv-col2" style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 14, alignItems: "start" }}>
-      <Card pad={0} style={{ maxHeight: 780, overflowY: "auto" }}>
-        <div style={{ padding: "13px 14px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 8 }}>
-          <Eyebrow>Findings · {reviewed}/{F.filter((x) => x.status !== "lead").length} reviewed</Eyebrow>
-          <label style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--ink-3)", display: "flex", gap: 5, alignItems: "center" }}>
-            <input type="checkbox" checked={showLeads} onChange={(e) => setShowLeads(e.target.checked)} /> show leads
-          </label>
+    <div className="grid items-start gap-col lg:grid-cols-[380px_minmax(0,1fr)]">
+      <Card pad={0} className="flex flex-col overflow-hidden lg:sticky lg:top-0 lg:max-h-[calc(100dvh-230px)]">
+        <div className="flex flex-col gap-2.5 border-b border-edge px-4 pt-4 pb-3">
+          <div className="flex items-center gap-2">
+            <h3 className="m-0 text-section font-medium text-pine">Findings</h3>
+            <span className="tnum rounded-pill bg-well px-2 py-0.5 text-micro text-slate">
+              {reviewed}/{total} reviewed
+            </span>
+            <label className="ml-auto flex cursor-pointer items-center gap-2 text-micro text-slate">
+              Show leads
+              <Switch on={showLeads} onChange={setShowLeads} label="Show leads" />
+            </label>
+          </div>
+          <span className="block h-1.5 overflow-hidden rounded-pill bg-well">
+            <span className="block h-full rounded-pill bg-lime transition-[width] duration-500" style={{ width: `${total ? (reviewed / total) * 100 : 0}%` }} />
+          </span>
         </div>
-        {list.map((x) => (
-          <button
-            key={x.id}
-            onClick={() => {
-              setSel(x.id);
-              setAnswer(null);
-              setErr(null);
-            }}
-            style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 14px", border: "none", borderBottom: "1px solid var(--line-3)", background: sel === x.id ? "var(--accent-tint)" : "transparent", color: "var(--ink)", opacity: x.status === "rejected" ? 0.55 : 1 }}
-          >
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <Badge tone={SEV_TONE[x.severity]}>{x.severity.toUpperCase()}</Badge>
-              <span style={{ font: `600 10px/1 ${MONO}`, color: "var(--ink-3)" }}>{x.id}</span>
-              <span style={{ marginLeft: "auto" }}>
-                {x.status === "accepted" ? <Badge tone="pass">ACCEPTED</Badge> : x.status === "rejected" ? <Badge tone="neutral">REJECTED</Badge> : x.status === "lead" ? <Badge tone="neutral">LEAD</Badge> : null}
-              </span>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 6, lineHeight: 1.4 }}>{x.claim}</div>
-            <div style={{ font: `500 10px/1.4 ${MONO}`, color: "var(--ink-3)", marginTop: 4 }}>
-              {x.category} · {x.confidence} confidence · {x.layers.join(" + ")}
-            </div>
-          </button>
-        ))}
+        <ul className="m-0 flex min-h-0 list-none flex-col gap-1.5 overflow-y-auto p-2">
+          {list.map((x) => {
+            const on = sel === x.id;
+            return (
+              <li key={x.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSel(x.id);
+                    setAnswer(null);
+                    setErr(null);
+                  }}
+                  className={cn("flex w-full cursor-pointer flex-col gap-1.5 rounded-box border p-3 text-left transition-colors", on ? "border-pine/25 bg-lime-tint/50" : "border-transparent hover:border-hairline hover:bg-page", x.status === "rejected" && "opacity-55")}
+                >
+                  <span className="flex items-center gap-2">
+                    <SevChip s={x.severity} />
+                    <span className="font-mono text-[10.5px] text-muted">{x.id}</span>
+                    <span className="ml-auto">
+                      <StatusTag s={x.status} />
+                    </span>
+                  </span>
+                  <span className="text-body leading-[1.4] font-medium text-pine">{x.claim}</span>
+                  <span className="text-micro text-muted">
+                    {x.category} · {x.confidence} confidence · {x.layers.join(" + ")}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </Card>
+
       {f ? (
-        <Card className="vv-fade">
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <Badge tone={SEV_TONE[f.severity]}>{f.severity.toUpperCase()}</Badge>
-            <Badge tone={f.confidence === "high" ? "accent" : "neutral"}>{f.confidence.toUpperCase()} CONFIDENCE</Badge>
-            <Badge tone="neutral">{f.category.toUpperCase()}</Badge>
-            {f.deterministic && <Badge tone="neutral">DETERMINISTIC CHECK</Badge>}
-          </div>
-          <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 19, marginTop: 12, lineHeight: 1.3 }}>{f.claim}</div>
-          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
-            <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Agreeing checks ({f.agreeing} independent layer{f.agreeing > 1 ? "s" : ""}):</span>
-            {f.checks.map((c) => (
-              <span key={c} style={{ font: `600 10px/1 ${MONO}`, padding: "4px 6px", borderRadius: 5, border: "1px solid var(--line-2)", background: "var(--panel-3)", color: "var(--ink-2)" }}>
-                {c}
-              </span>
-            ))}
-          </div>
-          {f.detail.length > 1 && (
-            <ul style={{ margin: "10px 0 0", paddingLeft: 18, color: "var(--ink-2)", fontSize: 12.5, lineHeight: 1.6 }}>
-              {f.detail.map((d, i) => (
-                <li key={i}>{d}</li>
-              ))}
-            </ul>
-          )}
-          {f.values && Object.keys(f.values).length > 0 && (
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
-              {Object.entries(f.values)
-                .filter(([, v]) => v != null && typeof v !== "object")
-                .slice(0, 8)
-                .map(([k, v]) => (
-                  <div key={k} style={{ padding: "8px 10px", borderRadius: 8, background: "var(--panel-3)" }}>
-                    <div style={{ font: `600 9.5px/1 ${MONO}`, color: "var(--ink-4)", letterSpacing: ".06em" }}>{k.replace(/_/g, " ").toUpperCase()}</div>
-                    <div style={{ fontWeight: 650, fontSize: 13, marginTop: 5, wordBreak: "break-word" }}>{fmtValue(v)}</div>
-                  </div>
-                ))}
+        <div key={f.id} className="vv-fade flex min-w-0 flex-col gap-col">
+          <Card>
+            <div className="flex flex-wrap items-center gap-2">
+              <SevChip s={f.severity} />
+              <Badge tone={f.confidence === "high" ? "accent" : "neutral"} glyph={false}>{`${f.confidence} confidence`}</Badge>
+              <Tag>{f.category}</Tag>
+              {f.deterministic && <Tag>Deterministic check</Tag>}
+              <span className="ml-auto font-mono text-[11px] text-muted">{f.id}</span>
             </div>
-          )}
-          {f.doc && (
-            <Btn kind="soft" style={{ marginTop: 12, height: 30 }} onClick={() => router.push(`/cases/${caseId}?tab=documents&doc=${f.doc}${f.page ? `&page=${f.page}` : ""}${f.bbox ? `&hl=${f.bbox.map((v) => Math.round(v)).join(",")}` : ""}${f.field ? `&field=${f.field}` : ""}`)}>
-              Open {f.doc}
-              {f.page ? ` at page ${f.page}` : ""}
-            </Btn>
-          )}
-          <div style={{ marginTop: 16 }}>
-            <Eyebrow>Evidence · {f.evidence.length} file{f.evidence.length === 1 ? "" : "s"}</Eyebrow>
-            <div style={{ display: "grid", gridTemplateColumns: f.evidence.filter(isImg).length ? "1fr 1fr" : "1fr", gap: 10, marginTop: 10 }}>
+            <h2 className="m-0 mt-3 text-[19px] leading-[1.35] font-medium tracking-[-0.3px] text-pine">{f.claim}</h2>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <span className="text-micro text-slate">
+                {f.agreeing} independent layer{f.agreeing > 1 ? "s" : ""} agree:
+              </span>
+              {f.checks.map((c) => (
+                <Tag key={c} mono>
+                  {c}
+                </Tag>
+              ))}
+            </div>
+            {f.detail.length > 1 && (
+              <ul className="m-0 mt-3 flex list-none flex-col gap-1.5 p-0">
+                {f.detail.map((d, i) => (
+                  <li key={i} className="flex gap-2 text-body leading-[1.5] text-pine/85">
+                    <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-pill bg-pine/40" />
+                    {d}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {f.values && Object.keys(f.values).length > 0 && (
+              <dl className="m-0 mt-4 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2">
+                {Object.entries(f.values)
+                  .filter(([, v]) => v != null && typeof v !== "object")
+                  .slice(0, 8)
+                  .map(([k, v]) => (
+                    <div key={k} className="flex min-w-0 flex-col gap-1 rounded-box border border-hairline bg-page px-3 py-2.5">
+                      <dt className="text-micro text-muted capitalize">{k.replace(/_/g, " ")}</dt>
+                      <dd className="tnum m-0 text-body font-medium break-words text-pine">{fmtValue(v)}</dd>
+                    </div>
+                  ))}
+              </dl>
+            )}
+            {f.doc && (
+              <Btn kind="soft" icon={FileSearch} className="mt-4" onClick={() => openDoc(f)}>
+                Open {f.doc}
+                {f.page ? ` at page ${f.page}` : ""}
+              </Btn>
+            )}
+          </Card>
+
+          <Card title="Evidence" count={f.evidence.length}>
+            <div className={cn("grid gap-2.5", f.evidence.filter(isImg).length ? "md:grid-cols-2" : "grid-cols-1")}>
               {f.evidence.slice(0, 6).map((p) => (
                 <EvidenceItem key={p} caseId={caseId} path={p} />
               ))}
             </div>
-          </div>
-          <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+          </Card>
+
+          <Card title="Your review">
             {f.review ? (
-              <div style={{ fontSize: 13, color: "var(--ink-2)" }}>
-                {f.review.decision === "accept" ? "Accepted" : "Rejected"} by {f.review.reviewer}
-                {f.review.reason ? `: ${f.review.reason}` : ""}
+              <div className="flex items-center gap-2.5 rounded-box border border-hairline bg-page px-3 py-2.5 text-body text-pine">
+                {f.review.decision === "accept" ? <Badge tone="pass">Accepted</Badge> : <Badge tone="neutral">Rejected</Badge>}
+                <span>
+                  by {f.review.reviewer}
+                  {f.review.reason ? `: ${f.review.reason}` : ""}
+                </span>
               </div>
             ) : locked ? (
-              <div style={{ fontSize: 13, color: "var(--ink-3)" }}>The case is closed.</div>
+              <p className="m-0 text-body text-slate">The case is closed.</p>
             ) : (
-              <>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Reason (required to reject, optional to accept)"
-                  style={{ width: "100%", minHeight: 58, padding: 10, borderRadius: 9, border: "1px solid var(--line-2)", background: "var(--panel-2)", color: "var(--ink)", fontSize: 13, resize: "vertical" }}
-                />
-                {err && <div style={{ color: "var(--fail)", fontSize: 12.5, marginTop: 6 }}>{err}</div>}
-                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-                  <Btn kind="primary" disabled={busy} onClick={() => review("accept")}>
+              <div className="flex flex-col gap-2.5">
+                <TextArea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required to reject, optional to accept)" className="min-h-[68px]" />
+                {err && <p className="m-0 rounded-box bg-danger-tint px-3 py-2 text-micro text-danger">{err}</p>}
+                <div className="flex flex-wrap gap-2">
+                  <Btn kind="primary" icon={Check} busy={busy} onClick={() => review("accept")}>
                     Accept finding
                   </Btn>
                   {f.category === "screening" && (
-                    <Btn kind="danger" disabled={busy} onClick={() => review("accept", true)}>
+                    <Btn kind="danger" size="md" icon={ShieldAlert} disabled={busy} onClick={() => review("accept", true)}>
                       Confirm true sanctions match
                     </Btn>
                   )}
-                  <Btn kind="ghost" disabled={busy} onClick={() => review("reject")}>
+                  <Btn kind="ghost" size="md" icon={X} disabled={busy} onClick={() => review("reject")}>
                     Reject with reason
                   </Btn>
                 </div>
-              </>
+              </div>
             )}
-          </div>
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
-            <Eyebrow>Ask the agent about this finding</Eyebrow>
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && ask()}
-                placeholder="e.g. Which other documents mention this account?"
-                style={{ flex: 1, height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid var(--line-2)", background: "var(--panel-2)", color: "var(--ink)", fontSize: 13 }}
-              />
-              <Btn kind="soft" onClick={ask}>
+          </Card>
+
+          <Card title={<span className="inline-flex items-center gap-2"><MessageCircleQuestion aria-hidden className="size-4" strokeWidth={1.8} /> Ask the agent about this finding</span>}>
+            <div className="flex gap-2">
+              <Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()} placeholder="e.g. Which other documents mention this account?" />
+              <Btn kind="dark" size="lg" icon={Send} onClick={ask} className="px-5">
                 Ask
               </Btn>
             </div>
-            {answer && <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.55, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>{answer}</div>}
-          </div>
-        </Card>
+            {answer && (
+              <div className="mt-3 flex flex-col gap-1.5 rounded-box border border-hairline bg-page p-3.5">
+                <Eyebrow>Answer</Eyebrow>
+                <p className="m-0 text-read whitespace-pre-wrap text-pine/90">{answer}</p>
+              </div>
+            )}
+          </Card>
+        </div>
       ) : (
-        <Card>No findings. A clean case is shown as clean, with proof, on the graph and overview.</Card>
+        <Card className="text-body text-slate">No findings. A clean case is shown as clean, with proof, on the graph and overview.</Card>
       )}
     </div>
   );

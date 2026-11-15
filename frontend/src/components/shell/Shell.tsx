@@ -1,320 +1,166 @@
 "use client";
 
 /**
- * App shell: the VeriSec console's sidebar + topbar, rebuilt for the Case
- * Investigator. Same 240px sunken rail, logo mark, mono section labels, nav
- * tags, accent "primary rail" button, grain overlay and light/dark tokens.
+ * Console chrome in the VeriSec console design: the 332px rail (wordmark,
+ * search, labelled groups, lime active pill, account card) and the 72px topbar
+ * (workspace name, dark product pill, environment pill, bell, avatar).
  */
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
-import type { CSSProperties, ReactNode } from "react";
-import { DISPLAY, MONO, Tag, Dot } from "@/components/ui/kit";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import type { ComponentType, ReactNode } from "react";
+import { Bell, ChevronRight, Cpu, FilePlus2, FolderSearch, ScrollText, Search, Settings, ShieldCheck } from "lucide-react";
 
-type NavItem = { href: string; tag: string; label: string; match?: (p: string) => boolean };
+import { Wordmark } from "@/components/brand/logo";
+import { WorkflowGlyph } from "@/components/workflows/workflow-glyph";
+import { cn } from "@/lib/utils";
 
-const NAV_MAIN: NavItem[] = [
-  { href: "/cases", tag: "CQ", label: "Case queue", match: (p) => p === "/cases" || (p.startsWith("/cases/") && p !== "/cases/new") },
-  { href: "/workflows", tag: "WF", label: "Workflows", match: (p) => p.startsWith("/workflows") },
-  { href: "/engines", tag: "EN", label: "Engines", match: (p) => p.startsWith("/engines") },
+type Item = { href: string; label: string; icon: ComponentType<{ className?: string; strokeWidth?: number }>; match?: (p: string) => boolean };
+
+const NAV: { label: string; items: Item[] }[] = [
+  {
+    label: "Investigate",
+    items: [
+      { href: "/cases", label: "Cases", icon: FolderSearch, match: (p) => p === "/cases" || (p.startsWith("/cases/") && p !== "/cases/new") },
+      { href: "/cases/new", label: "New case", icon: FilePlus2, match: (p) => p === "/cases/new" },
+    ],
+  },
+  {
+    label: "Configure",
+    items: [
+      { href: "/workflows", label: "Workflows", icon: WorkflowGlyph },
+      { href: "/engines", label: "Engines", icon: Cpu },
+    ],
+  },
+  {
+    label: "Manage",
+    items: [
+      { href: "/audit", label: "Audit log", icon: ScrollText },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
-const NAV_SYSTEM: NavItem[] = [
-  { href: "/audit", tag: "AU", label: "Audit log" },
-  { href: "/settings", tag: "ST", label: "Settings" },
-];
 
-const TITLES: Array<[RegExp, string]> = [
-  [/^\/cases\/new/, "New case"],
-  [/^\/cases\/[^/]+/, "Case"],
-  [/^\/cases/, "Case queue"],
-  [/^\/workflows\/[^/]+/, "Workflow editor"],
-  [/^\/workflows/, "Workflows"],
-  [/^\/engines/, "Engines"],
-  [/^\/audit/, "Audit log"],
-  [/^\/settings/, "Settings"],
-];
-
-function Logo() {
+function SearchBox() {
+  const router = useRouter();
+  const [q, setQ] = useState("");
   return (
-    <div style={{ padding: "16px 16px 13px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
-      <div
-        style={{
-          width: 30,
-          height: 30,
-          flex: "none",
-          border: "1.5px solid var(--ink)",
-          borderRadius: 6,
-          position: "relative",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div style={{ position: "absolute", width: 7, height: 7, borderLeft: "1.5px solid var(--accent)", borderTop: "1.5px solid var(--accent)", top: 5, left: 5 }} />
-        <div style={{ position: "absolute", width: 7, height: 7, borderRight: "1.5px solid var(--accent)", borderBottom: "1.5px solid var(--accent)", bottom: 5, right: 5 }} />
-        <div style={{ width: 9, height: 9, borderRadius: "50%", border: "1.5px solid var(--ink)" }} />
-      </div>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 14.5, letterSpacing: ".05em", lineHeight: 1 }}>VERISEC</div>
-        <div style={{ font: `500 9px/1.4 ${MONO}`, letterSpacing: ".13em", color: "var(--ink-3)", marginTop: 3 }}>CASE INVESTIGATOR · FIN</div>
-      </div>
-    </div>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        router.push(`/cases?q=${encodeURIComponent(q)}`);
+      }}
+      className="relative flex h-[52px] w-full items-center rounded-pill border border-hairline bg-page"
+    >
+      <Search aria-hidden className="pointer-events-none absolute left-4 size-5 text-search-glyph" strokeWidth={1.6} />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search cases" className="h-full w-full rounded-pill bg-transparent pr-20 pl-12 text-search text-pine placeholder:text-placeholder focus-visible:outline-none" />
+      <span className="pointer-events-none absolute right-3 flex gap-1">
+        <kbd className="grid size-6 place-items-center rounded-md border border-hairline bg-panel text-[11px] text-keycap-ink">⌘</kbd>
+        <kbd className="grid size-6 place-items-center rounded-md border border-hairline bg-panel text-[11px] text-keycap-ink">K</kbd>
+      </span>
+    </form>
   );
 }
 
-function navStyle(active: boolean): CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    width: "100%",
-    padding: "8px 9px",
-    borderRadius: 8,
-    border: "1px solid " + (active ? "var(--line-2)" : "transparent"),
-    background: active ? "var(--panel)" : "transparent",
-    color: active ? "var(--ink)" : "var(--ink-2)",
-    fontWeight: active ? 600 : 500,
-    fontSize: 13,
-    textDecoration: "none",
-  };
-}
-
-const sectionLabel: CSSProperties = {
-  font: `600 9.5px/1 ${MONO}`,
-  letterSpacing: ".16em",
-  color: "var(--ink-4)",
-  padding: "6px 8px 8px",
-};
-
-/* Theme lives in localStorage; read it through an external-store subscription
-   so the server render (light) and the client agree, then the client switches. */
-const themeListeners = new Set<() => void>();
-function readTheme(): "light" | "dark" {
-  try {
-    return localStorage.getItem("ci-theme") === "dark" ? "dark" : "light";
-  } catch {
-    return "light";
-  }
-}
-function writeTheme(t: "light" | "dark") {
-  try {
-    localStorage.setItem("ci-theme", t);
-  } catch {}
-  themeListeners.forEach((l) => l());
-}
-function subscribeTheme(l: () => void) {
-  themeListeners.add(l);
-  return () => themeListeners.delete(l);
-}
-
-export function Shell({ children }: { children: ReactNode }) {
+function Rail() {
   const path = usePathname() || "/";
-  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "light" as const);
-  const [health, setHealth] = useState<{ ok: boolean; model?: string } | null>(null);
+  const active = (i: Item) => (i.match ? i.match(path) : path === i.href || path.startsWith(`${i.href}/`));
+  return (
+    <aside className="hidden w-rail shrink-0 flex-col gap-5 overflow-x-hidden overflow-y-auto border-r border-hairline bg-panel px-5 py-6 lg:flex">
+      <Link href="/cases" aria-label="Case Investigator home" className="block w-fit px-1">
+        <Wordmark className="text-wordmark text-pine" markClassName="h-9 text-pine" />
+      </Link>
+      <SearchBox />
+      <nav className="flex shrink-0 flex-col gap-[18px]" aria-label="Console">
+        {NAV.map((g, gi) => (
+          <div key={g.label} className="flex flex-col gap-4">
+            {gi > 0 && <hr className="m-0 border-0 border-t border-hairline" aria-hidden />}
+            <p className="m-0 text-nav font-medium text-pine">{g.label}</p>
+            <ul className="m-0 flex list-none flex-col p-0">
+              {g.items.map((it) => {
+                const on = active(it);
+                const Icon = it.icon;
+                return (
+                  <li key={it.href}>
+                    <Link
+                      href={it.href}
+                      aria-current={on ? "page" : undefined}
+                      className={cn(
+                        "flex h-[51px] w-full items-center gap-3 rounded-pill px-4 transition-colors",
+                        on ? "border border-lime bg-lime text-pine" : "border border-transparent text-pine/75 hover:bg-lime-tint hover:text-pine",
+                      )}
+                    >
+                      <Icon aria-hidden className="size-[18px] shrink-0" strokeWidth={1.6} />
+                      <span className={cn("min-w-0 truncate text-body", on ? "font-medium" : "font-normal")}>{it.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+      <div className="mt-auto flex w-full flex-col gap-3 rounded-card border border-hairline bg-white p-2.5">
+        <Link href="/settings" className="flex items-center gap-2 rounded-[12px] px-1 py-1.5 text-left transition-colors hover:bg-black/[0.03]">
+          <span className="grid size-11 shrink-0 place-items-center rounded-pill bg-pine text-body font-semibold text-lime">IN</span>
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-body font-medium text-pine">Investigator</span>
+            <span className="truncate text-[11px] leading-tight text-subtle">Fraud and risk · local workspace</span>
+          </span>
+          <ChevronRight aria-hidden className="ml-auto size-5 shrink-0 text-pine" strokeWidth={1.6} />
+        </Link>
+      </div>
+    </aside>
+  );
+}
 
+function Topbar() {
+  const [health, setHealth] = useState<{ ok: boolean; model?: string; ai?: boolean } | null>(null);
   useEffect(() => {
     let alive = true;
     fetch("/api/health")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j) => alive && setHealth({ ok: true, model: j.model }))
+      .then((j) => alive && setHealth({ ok: true, model: j.model, ai: j.ai }))
       .catch(() => alive && setHealth({ ok: false }));
     return () => {
       alive = false;
     };
   }, []);
-
-  const flipTheme = () => writeTheme(theme === "light" ? "dark" : "light");
-
-  const title = TITLES.find(([re]) => re.test(path))?.[1] ?? "Case queue";
-  const isActive = (n: NavItem) => (n.match ? n.match(path) : path.startsWith(n.href));
-  const newActive = path === "/cases/new";
-
   return (
-    <div
-      data-theme={theme}
-      style={{ height: "100vh", overflow: "hidden", width: "100%", background: "var(--bg)", color: "var(--ink)", position: "relative", fontSize: 14, lineHeight: 1.5 }}
-    >
-      <div
-        aria-hidden="true"
-        style={{
-          position: "fixed",
-          inset: 0,
-          pointerEvents: "none",
-          zIndex: 80,
-          opacity: 0.028,
-          mixBlendMode: "multiply",
-          backgroundImage:
-            "url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22140%22 height=%22140%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%222%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/%3E%3C/svg%3E')",
-          backgroundSize: "140px",
-        }}
-      />
-      <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-        <aside
-          style={{
-            width: 240,
-            flex: "none",
-            background: "var(--bg-sunken)",
-            borderRight: "1px solid var(--line)",
-            display: "flex",
-            flexDirection: "column",
-            height: "100vh",
-            zIndex: 5,
-          }}
-        >
-          <Logo />
-          <nav style={{ flex: 1, overflowY: "auto", padding: "13px 11px", display: "flex", flexDirection: "column", gap: 3 }}>
-            <div style={sectionLabel}>INVESTIGATIONS</div>
-            <Link
-              href="/cases/new"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                width: "100%",
-                padding: "9px 11px",
-                borderRadius: 9,
-                border: "1px solid var(--accent)",
-                background: newActive ? "var(--accent)" : "var(--accent-tint)",
-                color: newActive ? "var(--accent-ink)" : "var(--accent)",
-                fontWeight: 700,
-                fontSize: 13,
-                marginBottom: 2,
-                textDecoration: "none",
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" style={{ flex: "none" }}>
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span style={{ flex: 1 }}>New case</span>
-            </Link>
-            {NAV_MAIN.map((n) => {
-              const a = isActive(n);
-              return (
-                <Link key={n.href} href={n.href} style={navStyle(a)}>
-                  <Tag active={a}>{n.tag}</Tag>
-                  <span style={{ flex: 1 }}>{n.label}</span>
-                </Link>
-              );
-            })}
-            <div style={{ ...sectionLabel, padding: "16px 8px 8px" }}>SYSTEM</div>
-            {NAV_SYSTEM.map((n) => {
-              const a = isActive(n);
-              return (
-                <Link key={n.href} href={n.href} style={navStyle(a)}>
-                  <Tag active={a}>{n.tag}</Tag>
-                  <span style={{ flex: 1 }}>{n.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-          <div style={{ padding: 11, borderTop: "1px solid var(--line)" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "9px 11px",
-                borderRadius: 10,
-                border: "1px solid var(--line-2)",
-                background: "var(--panel)",
-              }}
-            >
-              <Dot tone={health == null ? "neutral" : health.ok ? "pass" : "fail"} pulse={health == null} />
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>
-                  {health == null ? "Connecting" : health.ok ? "Engines online" : "Backend offline"}
-                </div>
-                <div style={{ font: `500 10px/1.3 ${MONO}`, color: "var(--ink-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {health?.ok ? health.model || "local" : "127.0.0.1:8100"}
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
+    <header className="flex h-topbar shrink-0 items-center gap-2 border-b border-hairline px-gutter sm:gap-4">
+      <h2 className="m-0 min-w-0 truncate text-org font-normal text-pine">Fraud investigations</h2>
+      <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-pill bg-pine px-2.5 text-[11px] font-semibold tracking-wide text-lime">
+        <ShieldCheck aria-hidden className="size-3.5" strokeWidth={2} />
+        CASES
+      </span>
+      <div className="hidden shrink-0 items-center gap-1 rounded-[20px] border border-hairline bg-panel p-1 sm:flex" role="group" aria-label="Where documents are processed">
+        <span className="rounded-pill bg-lime px-3 py-1 text-micro font-medium text-pine">Local</span>
+        <span className={cn("rounded-pill px-3 py-1 text-micro", health?.ok ? "text-pine/70" : "text-danger")} title={health?.model}>
+          {health == null ? "Connecting" : !health.ok ? "Engines offline" : health.ai ? "AI on" : "AI off"}
+        </span>
+      </div>
+      <div className="ml-auto flex items-center gap-1.5">
+        <button type="button" aria-label="Notifications" className="relative grid size-11 place-items-center rounded-2xl border border-hairline bg-panel transition-colors hover:bg-hover-panel">
+          <Bell aria-hidden className="size-[22px] text-pine" strokeWidth={1.5} />
+        </button>
+        <span className="grid size-11 place-items-center rounded-2xl border border-hairline bg-panel">
+          <span className="grid size-8 place-items-center rounded-pill bg-pine text-[12px] font-semibold text-lime">IN</span>
+        </span>
+      </div>
+    </header>
+  );
+}
 
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100vh" }}>
-          <header
-            style={{
-              height: 58,
-              flex: "none",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              padding: "0 22px",
-              borderBottom: "1px solid var(--line)",
-              background: "var(--bg)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
-              <span style={{ font: `600 10px/1 ${MONO}`, letterSpacing: ".12em", color: "var(--ink-4)" }}>CASES</span>
-              <span style={{ color: "var(--ink-4)" }}>/</span>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{title}</span>
-            </div>
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                height: 32,
-                padding: "0 12px",
-                borderRadius: 20,
-                fontWeight: 600,
-                fontSize: 12,
-                border: "1px solid var(--accent-line)",
-                background: "var(--accent-tint)",
-                color: "var(--accent)",
-              }}
-              title="Documents are processed on this machine"
-            >
-              <Dot tone="accent" />
-              Runs locally
-            </span>
-            <button
-              onClick={flipTheme}
-              title="Switch theme"
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 9,
-                border: "1px solid var(--line-2)",
-                background: "var(--panel)",
-                color: "var(--ink-2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                {theme === "light" ? (
-                  <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
-                ) : (
-                  <>
-                    <circle cx="12" cy="12" r="4" />
-                    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-                  </>
-                )}
-              </svg>
-            </button>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                background: "var(--accent-tint)",
-                border: "1px solid var(--accent-line)",
-                color: "var(--accent)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                font: `600 11px/1 ${MONO}`,
-              }}
-            >
-              IN
-            </div>
-          </header>
-          <main style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>{children}</main>
-        </div>
+export function Shell({ children }: { children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 flex overflow-hidden bg-page">
+      <Rail />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar />
+        <main className="min-w-0 flex-1 overflow-y-auto px-gutter py-6">
+          <div className="mx-auto flex w-full max-w-content flex-col gap-row">{children}</div>
+        </main>
       </div>
     </div>
   );

@@ -1,0 +1,35 @@
+id: loan
+label: Loan application
+description: Personal or consumer loan. Proves identity, address, employment and income, and that the money behind the pay stubs really arrives.
+window_days: 90
+required_documents:
+  - {types: [passport, drivers_license], label: Photo ID, count: 1}
+  - {types: [pay_stub], label: Pay stubs, count: 2}
+  - {types: [bank_statement], label: Bank statements (consecutive months), count: 3}
+  - {types: [utility_bill], label: Proof of address, count: 1}
+steps:
+  - {id: intake, label: Intake and classify, engine: intake, enabled: true}
+  - {id: extract, label: Read every field, engine: extract, enabled: true}
+  - {id: pdf_forensics, label: PDF structure forensics, engine: pdf_forensics, enabled: true}
+  - {id: pixel_forensics, label: Pixel forensics (TruFor), engine: pixel_forensics, enabled: true}
+  - {id: char_forensics, label: Character forensics, engine: char_forensics, enabled: true}
+  - {id: logic, label: Content logic, engine: logic, enabled: true}
+  - {id: payments, label: Payment instruments, engine: payments, enabled: true}
+  - {id: graph, label: Relationship graph, engine: graph, enabled: true}
+  - {id: sanctions, label: Sanctions screening, engine: sanctions, enabled: true}
+  - {id: verify, label: Verify findings, engine: verify, enabled: true}
+rules:
+  - {id: same_person, label: Same person on every document, flow: identity, severity: high, enabled: true}
+  - {id: dob_consistent, label: Same date of birth everywhere, flow: identity, severity: high, enabled: true}
+  - {id: id_valid, label: Photo ID not expired, flow: identity, severity: high, enabled: true}
+  - {id: current_address, label: One current address (bill and latest statement), flow: address, severity: medium, enabled: true}
+  - {id: pay_to_deposit, label: Every pay date has a matching deposit, flow: money, severity: high, enabled: true, params: {days: 3, tolerance: 1.0}}
+  - {id: employer_pays_account, label: Employer pays into the applicant's account, flow: money, severity: high, enabled: true}
+  - {id: income_consistency, label: Stated income matches pay stubs and deposits, flow: money, severity: medium, enabled: true, params: {tolerance_pct: 15}}
+  - {id: cheque_account, label: Cheque drawn on the applicant's own account and bank, flow: money, severity: high, enabled: true}
+  - {id: statement_chain, label: Statements form an unbroken chain, flow: time, severity: medium, enabled: true}
+  - {id: recency, label: Documents dated within the window, flow: time, severity: medium, enabled: true}
+  - {id: required_documents, label: Every required document present, flow: time, severity: medium, enabled: true}
+scoring:
+  weights: {critical: 40, high: 20, medium: 8, low: 2, info: 0}
+  levels: {medium: 10, high: 30, critical: 60}

@@ -4,8 +4,10 @@
  * each document's passes, and findings appearing as they are drafted. */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, Check, FileText, Radio, X } from "lucide-react";
 import { API_DIRECT, type LiveEvent, type Sev } from "@/lib/api";
-import { Badge, Btn, Card, DISPLAY, Dot, Eyebrow, MONO, Spinner } from "@/components/ui/kit";
+import { Badge, Bar, Btn, Card, SevChip, Spinner } from "@/components/ui/kit";
+import { cn } from "@/lib/utils";
 
 const ENGINE_LABEL: Record<string, string> = {
   extract: "Fields",
@@ -23,6 +25,7 @@ const ENGINE_LABEL: Record<string, string> = {
   zoom_in: "Zoom-in",
   vision_second_opinion: "Vision",
 };
+const BASE_PASSES = ["Fields", "PDF", "Pixels", "Characters", "Logic", "Payments"];
 const PIPE_STEPS = ["intake", "documents", "graph", "screening", "verify", "done"];
 const PIPE_LABEL: Record<string, string> = { intake: "Intake and classification", documents: "Deep analysis of every document", graph: "Relationship graph", screening: "Sanctions screening", verify: "Verifier checks every finding has proof", done: "Ready for review" };
 
@@ -119,7 +122,6 @@ export function Live({ caseId, onDone }: { caseId: string; onDone: () => void })
     return { todos, docs, drafts, phase, done, feed, agent };
   }, [events]);
 
-  const sevTone = (s: Sev) => (s === "critical" || s === "high" ? "fail" : s === "medium" ? "caution" : "neutral");
   const steps = view.todos.length
     ? view.todos.map((t) => ({ label: t.content, state: t.status === "completed" ? "done" : t.status === "in_progress" ? "run" : "todo" }))
     : PIPE_STEPS.map((s) => {
@@ -127,99 +129,121 @@ export function Live({ caseId, onDone }: { caseId: string; onDone: () => void })
         const cur = PIPE_STEPS.indexOf(view.phase === "agent" || view.phase === "completeness" ? "documents" : view.phase);
         return { label: PIPE_LABEL[s], state: i < cur || view.phase === "done" ? "done" : i === cur ? "run" : "todo" };
       });
+  const doneCount = steps.filter((s) => s.state === "done").length;
+  const t0 = events[0]?.t ?? 0;
+  const live = conn === "live" && !view.done;
 
   return (
-    <div className="vv-col2" style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 14 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <Card>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Eyebrow>{view.todos.length ? "Lead investigator's plan" : "Investigation plan"}</Eyebrow>
-            <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, font: `600 10px/1 ${MONO}`, color: conn === "live" ? "var(--accent)" : "var(--ink-3)" }}>
-              <Dot tone={conn === "live" && !view.done ? "accent" : "neutral"} pulse={conn === "live" && !view.done} />
-              {view.done ? "DONE" : conn === "live" ? "LIVE" : conn.toUpperCase()}
+    <div className="grid items-start gap-col lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="flex min-w-0 flex-col gap-col lg:sticky lg:top-0">
+        <Card
+          title={view.todos.length ? "Lead investigator's plan" : "Investigation plan"}
+          action={
+            <span className={cn("inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-micro font-medium", view.done ? "bg-pine text-lime" : live ? "bg-lime-tint text-pine" : "bg-inert-tint text-inert")}>
+              {view.done ? <Check aria-hidden className="size-3" strokeWidth={3} /> : <span className={cn("size-1.5 rounded-pill", live ? "vv-pulse bg-uptime" : "bg-muted")} />}
+              {view.done ? "Done" : conn === "live" ? "Live" : conn === "connecting" ? "Connecting" : "Closed"}
             </span>
-          </div>
-          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 2 }}>
+          }
+        >
+          <Bar value={doneCount} max={steps.length} className="mb-3" />
+          <ol className="m-0 flex list-none flex-col p-0">
             {steps.map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "7px 0" }}>
-                <span style={{ width: 18, height: 18, flex: "none", marginTop: 1, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid " + (s.state === "done" ? "var(--pass)" : s.state === "run" ? "var(--accent)" : "var(--line-2)"), background: s.state === "done" ? "var(--pass)" : "transparent" }}>
-                  {s.state === "done" ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" strokeWidth="3.5">
-                      <path d="M5 12l5 5L20 7" />
-                    </svg>
-                  ) : s.state === "run" ? (
-                    <Spinner size={10} />
-                  ) : null}
+              <li key={i} className="relative flex items-start gap-3 pb-3 last:pb-0">
+                {i < steps.length - 1 && <span aria-hidden className={cn("absolute top-6 bottom-0 left-[10px] w-px", s.state === "done" ? "bg-ramp-3/40" : "bg-edge")} />}
+                <span className={cn("relative z-10 grid size-[21px] shrink-0 place-items-center rounded-pill border-[1.5px]", s.state === "done" ? "border-lime bg-lime text-pine" : s.state === "run" ? "border-pine bg-page" : "border-edge bg-page")}>
+                  {s.state === "done" ? <Check aria-hidden className="size-3" strokeWidth={3} /> : s.state === "run" ? <Spinner size={11} /> : null}
                 </span>
-                <span style={{ fontSize: 13, color: s.state === "todo" ? "var(--ink-3)" : "var(--ink)", fontWeight: s.state === "run" ? 650 : 500, lineHeight: 1.4 }}>{s.label}</span>
-              </div>
+                <span className={cn("pt-0.5 text-body leading-[1.35]", s.state === "todo" ? "text-muted" : "text-pine", s.state === "run" && "font-medium")}>{s.label}</span>
+              </li>
             ))}
-          </div>
+          </ol>
         </Card>
-        <Card>
-          <Eyebrow>Draft findings · {view.drafts.length}</Eyebrow>
-          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6, maxHeight: 330, overflowY: "auto" }}>
-            {view.drafts.length === 0 && <div style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Nothing drafted yet.</div>}
+        <Card title="Draft findings" count={view.drafts.length}>
+          <div className="flex max-h-[330px] flex-col gap-1.5 overflow-y-auto">
+            {view.drafts.length === 0 && <p className="m-0 text-micro text-muted">Nothing drafted yet. Findings appear here as the analysts draft them.</p>}
             {view.drafts.map((d, i) => (
-              <div key={i} className="vv-pop" style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "8px 9px", borderRadius: 8, background: "var(--panel-2)", border: "1px solid var(--line)" }}>
-                <Badge tone={sevTone(d.severity)}>{d.severity.toUpperCase()}</Badge>
-                <span style={{ fontSize: 12.5, lineHeight: 1.4 }}>{d.claim}</span>
+              <div key={i} className="vv-pop flex flex-col gap-1.5 rounded-box border border-hairline bg-page p-2.5">
+                <SevChip s={d.severity} />
+                <span className="text-micro leading-[1.45] text-pine">{d.claim}</span>
               </div>
             ))}
           </div>
         </Card>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+
+      <div className="flex min-w-0 flex-col gap-col">
         {view.done && (
-          <Card style={{ border: "1px solid var(--accent-line)", background: "var(--accent-tint)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 17 }}>Investigation finished: {String(view.done.findings)} findings, risk {String(view.done.risk_level)}</div>
-              <span style={{ color: "var(--ink-2)", fontSize: 13 }}>Recommended: {String(view.done.recommended_outcome)}</span>
-              <Btn kind="primary" style={{ marginLeft: "auto" }} onClick={onDone}>
-                Open the case
-              </Btn>
+          <section className="vv-pop flex flex-wrap items-center gap-4 rounded-shell bg-pine p-5 text-white">
+            <span className="grid size-11 shrink-0 place-items-center rounded-pill bg-lime text-pine">
+              <Check aria-hidden className="size-5" strokeWidth={2.4} />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-section font-medium">
+                Investigation finished: {String(view.done.findings)} findings, {String(view.done.risk_level)} risk
+              </span>
+              <span className="text-micro text-white/70">Recommended: {String(view.done.recommended_outcome)}</span>
             </div>
-          </Card>
+            <Btn kind="primary" iconRight={ArrowRight} onClick={onDone}>
+              Open the case
+            </Btn>
+          </section>
         )}
-        <Card>
-          <Eyebrow>Documents · one analyst per document</Eyebrow>
-          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+        <Card title="Documents" sub="One analyst per document, six passes each." count={Object.keys(view.docs).length || undefined}>
+          <div className="flex flex-col gap-2">
             {Object.keys(view.docs).length === 0 && (
-              <div style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--ink-3)", fontSize: 13 }}>
-                <Spinner size={13} /> Reading and classifying the uploads
+              <div className="flex items-center gap-2 rounded-box border border-dashed border-edge bg-page px-3 py-4 text-body text-slate">
+                <Spinner size={14} /> Reading and classifying the uploads
               </div>
             )}
-            {Object.entries(view.docs).map(([id, d]) => (
-              <div key={id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--panel-2)", flexWrap: "wrap" }}>
-                <div style={{ minWidth: 190 }}>
-                  <div style={{ fontWeight: 650, fontSize: 13 }}>{d.label}</div>
-                  <div style={{ font: `500 10.5px/1.3 ${MONO}`, color: "var(--ink-3)" }}>{id}</div>
+            {Object.entries(view.docs).map(([id, d]) => {
+              const passes = ["Fields", "PDF", "Pixels", "Characters", "Logic", "Payments", "Zoom-in", "Vision"].filter((k) => d.engines[k] || BASE_PASSES.includes(k));
+              const ok = passes.filter((k) => d.engines[k] === "ok").length;
+              return (
+                <div key={id} className="vv-pop flex flex-wrap items-center gap-3 rounded-box border border-hairline bg-page px-3 py-2.5">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-well text-pine">
+                    <FileText aria-hidden className="size-4" strokeWidth={1.7} />
+                  </span>
+                  <span className="flex w-[180px] min-w-0 flex-col">
+                    <span className="truncate text-body font-medium text-pine">{d.label}</span>
+                    <span className="truncate font-mono text-[10.5px] text-muted">{id}</span>
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-wrap gap-1">
+                    {passes.map((k) => {
+                      const st = d.engines[k];
+                      return (
+                        <span key={k} className={cn("inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-[10.5px] font-medium transition-colors", st === "ok" ? "bg-lime-tint text-pine" : st === "err" ? "bg-danger-tint text-danger" : st === "run" ? "bg-pine text-lime" : "bg-well text-muted")}>
+                          {st === "run" ? <Spinner size={9} className="text-lime" /> : st === "ok" ? <Check aria-hidden className="size-2.5" strokeWidth={3} /> : st === "err" ? <X aria-hidden className="size-2.5" strokeWidth={3} /> : null}
+                          {k}
+                        </span>
+                      );
+                    })}
+                  </span>
+                  <span className="tnum text-micro text-muted">
+                    {ok}/{passes.length}
+                  </span>
+                  {d.verdict ? <Badge tone={d.verdict === "tampered" ? "fail" : d.verdict === "suspicious" ? "caution" : "pass"}>{d.verdict}</Badge> : d.flags > 0 ? <Badge tone="caution">{`${d.flags} signal${d.flags > 1 ? "s" : ""}`}</Badge> : null}
                 </div>
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", flex: 1 }}>
-                  {["Fields", "PDF", "Pixels", "Characters", "Logic", "Payments", "Zoom-in", "Vision"].filter((k) => d.engines[k] || ["Fields", "PDF", "Pixels", "Characters", "Logic", "Payments"].includes(k)).map((k) => {
-                    const st = d.engines[k];
-                    return (
-                      <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 10px/1 ${MONO}`, padding: "5px 7px", borderRadius: 6, border: "1px solid " + (st === "ok" ? "var(--accent-line)" : st === "err" ? "var(--fail)" : "var(--line-2)"), background: st === "ok" ? "var(--accent-tint)" : st === "err" ? "var(--fail-tint)" : "var(--panel-3)", color: st === "ok" ? "var(--accent)" : st === "err" ? "var(--fail)" : "var(--ink-3)" }}>
-                        {st === "run" && <Spinner size={9} />}
-                        {k.toUpperCase()}
-                      </span>
-                    );
-                  })}
-                </div>
-                {d.verdict ? <Badge tone={d.verdict === "tampered" ? "fail" : d.verdict === "suspicious" ? "caution" : "pass"}>{d.verdict.toUpperCase()}</Badge> : d.flags > 0 ? <Badge tone="caution">{d.flags} SIGNAL{d.flags > 1 ? "S" : ""}</Badge> : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
-        <Card pad={0}>
-          <div style={{ padding: "14px 16px 8px" }}>
-            <Eyebrow>Activity {view.agent ? "· lead investigator and analysts" : "· engines"}</Eyebrow>
+        <Card
+          pad={0}
+          className="overflow-hidden"
+        >
+          <div className="flex items-center gap-2 border-b border-edge px-5 py-3.5">
+            <Radio aria-hidden className="size-4 text-pine" strokeWidth={1.8} />
+            <h3 className="m-0 text-section font-medium text-pine">Activity</h3>
+            <span className="text-micro text-muted">{view.agent ? "lead investigator and analysts" : "engines"}</span>
+            <span className="tnum ml-auto rounded-pill bg-well px-2 py-0.5 text-micro text-slate">{view.feed.length}</span>
           </div>
-          <div ref={feedRef} style={{ maxHeight: 360, overflowY: "auto", padding: "0 16px 14px" }}>
+          <div ref={feedRef} className="max-h-[380px] overflow-y-auto bg-page px-2 py-1.5">
+            {view.feed.length === 0 && <p className="m-0 px-3 py-6 text-center text-micro text-muted">Waiting for the first event.</p>}
             {view.feed.map((f, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--line-3)", fontSize: 12.5 }}>
-                <span style={{ font: `600 10.5px/1.6 ${MONO}`, color: f.tone ? `var(--${f.tone === "accent" ? "accent" : f.tone})` : "var(--ink-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.who}</span>
-                <span style={{ color: "var(--ink-2)", lineHeight: 1.45, wordBreak: "break-word" }}>{f.text}</span>
+              <div key={i} className="grid grid-cols-[52px_140px_minmax(0,1fr)] items-baseline gap-2.5 rounded-lg px-3 py-1.5 text-micro hover:bg-hover-light">
+                <span className="tnum font-mono text-[10.5px] text-icon-soft">+{Math.max(0, f.t - t0).toFixed(1)}s</span>
+                <span className={cn("truncate font-mono text-[10.5px] font-medium", f.tone === "fail" ? "text-danger" : f.tone === "caution" ? "text-caution" : f.tone === "pass" ? "text-positive" : f.tone === "accent" ? "text-pine" : "text-muted")}>{f.who}</span>
+                <span className="leading-[1.5] break-words text-pine/85">{f.text}</span>
               </div>
             ))}
           </div>
