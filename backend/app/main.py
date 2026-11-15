@@ -206,6 +206,7 @@ def investigate(case_id: str, body: dict = Body(default={})) -> dict:
             emit({"type": "error", "error": str(e)[:400]})
             pipeline.set_status(case, state="error", error=str(e)[:400])
 
+    pipeline.set_status(case, state="running", phase="intake", started=time.time())
     t = threading.Thread(target=work, daemon=True)
     RUNNING[case_id] = t
     t.start()

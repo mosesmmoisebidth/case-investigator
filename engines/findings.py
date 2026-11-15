@@ -75,7 +75,9 @@ def verify(case: Path, flags: list[dict]) -> list[dict]:
         f = g[0]
         hosts = [h for h in groups if h is not g and any(x.get("doc") == f.get("doc") and x["layer"] in ("logic", "pixel", "char") and SEV_ORDER.index(x["severity"]) >= SEV_ORDER.index("high") for x in h)]
         if hosts:
-            hosts[0].append(f)
+            # the strongest host: a deterministic content check first, then severity, then layers
+            best = max(hosts, key=lambda h: (any(x["deterministic"] and x["layer"] in ("logic", "relationship") for x in h), max(SEV_ORDER.index(x["severity"]) for x in h), len({x["layer"] for x in h})))
+            best.append(f)
             groups.remove(g)
     findings = []
     for i, g in enumerate(groups, start=1):

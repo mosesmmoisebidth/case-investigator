@@ -16,6 +16,7 @@ import io
 import json
 import os
 import subprocess
+import threading
 from pathlib import Path
 
 import cv2
@@ -28,6 +29,7 @@ from .intake import doc_meta, doc_pages
 
 TRUFOR_DIR = Path(os.environ.get("TRUFOR_DIR", VERISEC_ROOT / "TruFor"))
 TRUFOR_PY = Path(os.environ.get("TRUFOR_PY", TRUFOR_DIR / ".venv-trufor" / "Scripts" / "python.exe"))
+_TRUFOR_LOCK = threading.Lock()
 THRESHOLDS = {"default": 0.35, "pay_stub": 0.3, "bank_statement": 0.3, "cheque": 0.35, "passport": 0.4, "utility_bill": 0.32}
 
 
@@ -123,13 +125,16 @@ def run_trufor(case: Path, doc_id: str, pngs: list[Path]) -> dict[str, dict]:
     out_dir.mkdir(parents=True, exist_ok=True)
     todo = [p for p in pngs if not (out_dir / (p.stem + ".json")).exists()]
     if todo and TRUFOR_PY.exists():
-        subprocess.run(
-            [str(TRUFOR_PY), str(ROOT / "engines" / "trufor_runner.py"), str(out_dir), *map(str, todo)],
-            cwd=str(TRUFOR_DIR / "test_docker" / "src"),
-            capture_output=True,
-            text=True,
-            timeout=900,
-        )
+        with _TRUFOR_LOCK:  # one TruFor at a time: three parallel CPU loads starve each other
+            p = subprocess.run(
+                [str(TRUFOR_PY), str(ROOT / "engines" / "trufor_runner.py"), str(out_dir), *map(str, todo)],
+                cwd=str(TRUFOR_DIR / "test_docker" / "src"),
+                capture_output=True,
+                text=True,
+                timeout=900,
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            )
+        (out_dir / "runner.log").write_text(f"exit {p.returncode}\n{p.stdout[-2000:]}\n{p.stderr[-4000:]}", encoding="utf-8")
     res = {}
     for p in pngs:
         j = out_dir / (p.stem + ".json")
