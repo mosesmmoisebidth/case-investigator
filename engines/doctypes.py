@@ -373,6 +373,8 @@ def find_micr(pages: list[dict]) -> dict | None:
     for pg in pages:
         for line in reversed(lines_of(pg["words"])):
             t = " ".join(w["t"] for w in line)
+            # in an E-13B line OCR reads a 0 next to a digit or the transit symbol as the letter O
+            t = re.sub(r"(?<=[T⑆⑈:|\d])[Oo](?=\d)|(?<=\d)[Oo](?=[\dT⑆⑈:|C])", "0", t)
             if not re.search(r"[⑆⑈:|]|\d{9}", t):
                 continue
             m = MICR_RE.search(t)

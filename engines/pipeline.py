@@ -82,7 +82,7 @@ def investigate(case_id: str, emit: Emit = _noop, use_trufor: bool = True) -> di
     r = intake.intake(case)
     docs = r["documents"]
     all_flags = list(r.get("flags", []))
-    emit({"type": "intake_done", "documents": [{k: d[k] for k in ("doc_id", "doc_label", "doc_type", "page_count", "file")} for d in docs], "summary": r["summary"]})
+    emit({"type": "intake_done", "documents": [{k: d.get(k) for k in ("doc_id", "doc_label", "doc_type", "family_label", "needs_review", "page_count", "file")} for d in docs], "summary": r["summary"]})
 
     set_status(case, phase="documents")
     emit({"type": "phase", "phase": "documents", "label": f"Deep analysis of {len(docs)} documents"})

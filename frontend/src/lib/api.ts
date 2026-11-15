@@ -36,6 +36,21 @@ export interface DocDetail {
   badge: "pass" | "caution" | "fail";
   findings: number;
   verdict?: string;
+  catalog_type?: string;
+  family?: string;
+  family_label?: string;
+  classify_conf?: number;
+  classify_why?: string[];
+  classify_alt?: { type: string; label: string; score: number }[];
+  needs_review?: boolean;
+  split_reason?: string | null;
+  page_numbers?: number[];
+}
+
+export interface CatalogFamily {
+  id: string;
+  label: string;
+  types: { id: string; label: string; pack: string; used_for: string[]; checked: boolean }[];
 }
 
 export interface Score {
@@ -205,6 +220,8 @@ export const api = {
   investigate: (id: string, mode: "agent" | "pipeline" = "agent", trufor = true) => send<{ started: boolean; mode: string }>("POST", `/cases/${id}/investigate`, { mode, trufor }),
   eventsAll: (id: string) => get<LiveEvent[]>(`/cases/${id}/events/all`),
   document: (id: string, doc: string) => get<DocumentData>(`/cases/${id}/documents/${doc}`),
+  docCatalog: () => get<{ families: CatalogFamily[]; count: number }>("/catalog"),
+  setDocType: (id: string, doc: string, catalog_type: string, reason: string) => send<{ document: unknown; note: string }>("PATCH", `/cases/${id}/documents/${doc}/type`, { catalog_type, reason }),
   graph: (id: string) => get<Graph>(`/cases/${id}/graph`),
   blueprint: (id: string) => get<{ workflow: string; rules: BlueprintRule[] }>(`/cases/${id}/blueprint`),
   consistency: (id: string) => get<Consistency>(`/cases/${id}/consistency`),

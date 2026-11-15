@@ -26,7 +26,7 @@ from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile  # noq
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse  # noqa: E402
 
 from agent import llm  # noqa: E402
-from engines import doctypes, findings, pipeline, resolve, workflow  # noqa: E402
+from engines import catalog, doctypes, findings, intake, pipeline, resolve, workflow  # noqa: E402
 from engines.core import CASES_DIR, audit, case_dir, jsonable, read_json, sha256_file, verify_audit, write_json  # noqa: E402
 from engines.registry import ENGINES  # noqa: E402
 
@@ -132,7 +132,17 @@ def get_case(case_id: str) -> dict:
         worst = max((f["severity"] for f in df), key=findings.SEV_ORDER.index, default=None)
         badge = "fail" if worst in ("critical", "high") else "caution" if worst in ("medium", "low") else "pass"
         dossier = read_json(case, f"evidence/{d['doc_id']}/dossier.json", None)
-        docs.append({**{k: d[k] for k in ("doc_id", "doc_label", "doc_type", "page_count", "file", "sha256", "kind")}, "thumb": d["pages"][0]["png"] if d["pages"] else None, "badge": badge, "findings": len(df), "verdict": (dossier or {}).get("verdict")})
+        docs.append(
+            {
+                **{k: d[k] for k in ("doc_id", "doc_label", "doc_type", "page_count", "file", "sha256", "kind")},
+                **{k: d.get(k) for k in ("catalog_type", "family", "family_label", "classify_conf", "classify_why", "classify_alt", "needs_review", "split_reason")},
+                "page_numbers": [p["page"] for p in d["pages"]],
+                "thumb": d["pages"][0]["png"] if d["pages"] else None,
+                "badge": badge,
+                "findings": len(df),
+                "verdict": (dossier or {}).get("verdict"),
+            }
+        )
     return {
         **s,
         "status": read_json(case, "status.json", {}),
@@ -425,6 +435,28 @@ def report_json(case_id: str):
         "graph_counts": (read_json(case, "graph/graph.json", {}) or {}).get("counts"),
         "audit_intact": verify_audit(case),
     })
+
+
+# ------------------------------------------------------------------ document catalog
+@app.get("/api/catalog")
+def document_catalog() -> dict:
+    """Every document type the sorter recognises, grouped by family."""
+    return catalog.public()
+
+
+@app.patch("/api/cases/{case_id}/documents/{doc_id}/type")
+def set_document_type(case_id: str, doc_id: str, body: dict = Body(...)) -> dict:
+    """The investigator corrects a document's type. Kept on re-runs; re-run the investigation to re-check it."""
+    case = _case(case_id)
+    if _summary(case).get("locked"):
+        raise HTTPException(409, "the case is closed")
+    try:
+        d = intake.reclassify(case, doc_id, str(body.get("catalog_type", "")), str(body.get("reason", "")).strip(), str(body.get("by") or "investigator"))
+    except KeyError:
+        raise HTTPException(404, "document not found") from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"document": d, "note": "Re-run the investigation to check this document as its new type."}
 
 
 # ------------------------------------------------------------------ workflows

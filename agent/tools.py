@@ -16,7 +16,7 @@ from typing import Callable
 from langchain_core.tools import StructuredTool
 from PIL import Image
 
-from engines import char_forensics, graph, intake, logic, payments, pdf_forensics, pixel_forensics, sanctions
+from engines import catalog, char_forensics, graph, intake, logic, payments, pdf_forensics, pixel_forensics, sanctions
 from engines.core import audit, read_json, write_json
 
 Emit = Callable[[dict], None]
@@ -47,9 +47,19 @@ def make_tools(case: Path, case_type: str, context: str, flags_sink: list, emit:
 
     # ----------------------------------------------------------- per-document passes
     def list_documents() -> str:
-        """List every document in the case with its type, pages and file hash."""
+        """List every document the intake sorter found: its type and family, how sure the sorter was and why, its pages, the file it came from (one file can hold several documents) and the file hash. Documents marked needs_review were not recognised with confidence."""
         m = read_json(case, "intake/manifest.json", {"documents": []})["documents"]
-        return json.dumps([{k: d[k] for k in ("doc_id", "doc_label", "doc_type", "page_count", "file", "sha256", "duplicate_of")} for d in m])
+        keys = ("doc_id", "doc_label", "catalog_type", "family_label", "classify_conf", "classify_why", "classify_alt", "needs_review", "split_reason", "page_count", "file", "sha256", "duplicate_of")
+        return json.dumps([{k: d.get(k) for k in keys} | {"pages": [p["page"] for p in d.get("pages", [])]} for d in m], default=str)
+
+    def reclassify_document(doc_id: str, catalog_type: str, reason: str) -> str:
+        """Correct a document's type when the sorter got it wrong (after you have looked at the page). catalog_type is an id from the document catalog, e.g. bank_statement, credit_card_statement, lease_agreement, insurance_policy. The correction is audited and kept on re-runs. Run read_fields on the document again afterwards."""
+        try:
+            d = intake.reclassify(case, doc_id, catalog_type, reason, "agent:lead-investigator")
+        except (KeyError, ValueError) as e:
+            return json.dumps({"error": str(e), "known_types": sorted(catalog.load()["types"])})
+        emit({"type": "agent_message", "who": "lead investigator", "text": f"re-sorted {doc_id} as {d['doc_label']}: {reason}"})
+        return json.dumps({"doc_id": doc_id, "now": d["doc_label"], "family": d["family_label"]})
 
     def read_fields(doc_id: str) -> str:
         """Pass 5a: read every field of one document (value, page, box) plus statement rows, MRZ and MICR."""
@@ -169,5 +179,5 @@ def make_tools(case: Path, case_type: str, context: str, flags_sink: list, emit:
 
     T = lambda f: StructuredTool.from_function(f)  # noqa: E731
     analyst = [T(read_fields), T(pdf_structure), T(pixel_tamper), T(character_forensics), T(content_logic), T(payment_instruments), T(zoom_in), T(vision_second_opinion), T(write_dossier)]
-    lead = [T(list_documents), T(build_relationship_graph), T(search_transactions), T(screen_names), T(record_lead)]
+    lead = [T(list_documents), T(reclassify_document), T(build_relationship_graph), T(search_transactions), T(screen_names), T(record_lead)]
     return {"analyst": analyst, "lead": lead}

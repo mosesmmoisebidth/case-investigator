@@ -5,16 +5,16 @@
  * forensics, checks, and this document's findings. */
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, FileText, Layers, Minus, X } from "lucide-react";
-import { api, fileUrl, fmtValue, type DocDetail, type DocumentData } from "@/lib/api";
-import { Badge, Card, Eyebrow, Facts, Loading, SevChip, TabStrip, Tag } from "@/components/ui/kit";
+import { Check, FileText, Layers, Minus, Tags, X } from "lucide-react";
+import { api, fileUrl, fmtValue, type CatalogFamily, type DocDetail, type DocumentData } from "@/lib/api";
+import { Badge, Btn, Card, Eyebrow, Facts, Input, Loading, SelectBox, SevChip, TabStrip, Tag } from "@/components/ui/kit";
 import { cn } from "@/lib/utils";
 
 type Layer = "heatmap" | "chars" | "ocr" | "fields";
 type Side = "findings" | "fields" | "file" | "checks";
 const LAYER_LABEL: Record<Layer, string> = { fields: "Fields", chars: "Characters", heatmap: "Tamper map", ocr: "Text boxes" };
 
-export function DocViewer({ caseId, docs, initial }: { caseId: string; docs: DocDetail[]; initial: { doc?: string; page?: number; hl?: number[]; field?: string } }) {
+export function DocViewer({ caseId, docs, initial, onChange }: { caseId: string; docs: DocDetail[]; initial: { doc?: string; page?: number; hl?: number[]; field?: string }; onChange?: () => void }) {
   const [docId, setDocId] = useState(initial.doc || docs[0]?.doc_id);
   const [data, setData] = useState<DocumentData | null>(null);
   const [page, setPage] = useState(initial.page || 1);
@@ -79,7 +79,10 @@ export function DocViewer({ caseId, docs, initial }: { caseId: string; docs: Doc
               )}
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-body font-medium text-pine">{x.doc_label}</span>
-                <span className="truncate font-mono text-[10px] text-muted">{x.doc_id}</span>
+                <span className="truncate text-[10.5px] text-muted">
+                  {x.needs_review ? <span className="font-medium text-caution">Check type · </span> : null}
+                  {x.family_label || x.doc_id}
+                </span>
               </span>
               <span aria-hidden className={cn("size-2 shrink-0 rounded-pill", x.badge === "pass" ? "bg-ramp-4" : x.badge === "caution" ? "bg-caution" : "bg-danger")} />
             </button>
@@ -119,6 +122,7 @@ export function DocViewer({ caseId, docs, initial }: { caseId: string; docs: Doc
                 })}
               </div>
             </div>
+            <Sorting caseId={caseId} doc={docs.find((x) => x.doc_id === docId)} onChange={onChange} />
             {d.meta.pages.length > 1 && (
               <div className="mb-2.5 flex items-center gap-1">
                 <span className="mr-1 text-micro text-muted">Page</span>
@@ -272,6 +276,78 @@ export function DocViewer({ caseId, docs, initial }: { caseId: string; docs: Doc
           )}
         </div>
       </Card>
+    </div>
+  );
+}
+
+/** How the intake sorter typed this document, and a way to correct it. */
+function Sorting({ caseId, doc, onChange }: { caseId: string; doc?: DocDetail; onChange?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [fams, setFams] = useState<CatalogFamily[] | null>(null);
+  const [type, setType] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  if (!doc || !doc.catalog_type) return null;
+  const pct = Math.round((doc.classify_conf ?? 0) * 100);
+  const toggle = () => {
+    setOpen((o) => !o);
+    setMsg(null);
+    setType(doc.catalog_type || "");
+    if (!fams) api.docCatalog().then((c) => setFams(c.families)).catch(() => setFams([]));
+  };
+  const save = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await api.setDocType(caseId, doc.doc_id, type, reason.trim());
+      setMsg(r.note);
+      setOpen(false);
+      onChange?.();
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+    setBusy(false);
+  };
+  return (
+    <div className={cn("mb-3 flex flex-col gap-2 rounded-box border px-3 py-2.5", doc.needs_review ? "border-caution/35 bg-caution-tint/50" : "border-hairline bg-page")}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-micro">
+        <Tags aria-hidden className="size-3.5 text-pine" strokeWidth={1.8} />
+        <span className="text-pine">
+          Sorted as <span className="font-medium">{doc.doc_label}</span> · {doc.family_label}
+        </span>
+        <span className={cn("tnum rounded-pill px-1.5 py-0.5 text-[10.5px] font-medium", doc.needs_review ? "bg-caution-tint text-caution" : "bg-lime-tint text-pine")}>{doc.needs_review ? "check type" : `${pct}% sure`}</span>
+        <button type="button" onClick={toggle} className="ml-auto cursor-pointer text-micro font-medium text-pine hover:underline">
+          {open ? "Cancel" : "Change type"}
+        </button>
+      </div>
+      {doc.classify_why && doc.classify_why.length > 0 && <span className="text-micro leading-[1.5] text-slate">Because: {doc.classify_why.join("; ")}</span>}
+      {doc.split_reason && doc.page_numbers && (
+        <span className="text-micro leading-[1.5] text-slate">
+          Pages {doc.page_numbers.join(", ")} of {doc.file}. A new document started here: {doc.split_reason}.
+        </span>
+      )}
+      {doc.classify_alt && doc.classify_alt.length > 0 && !open && <span className="text-micro text-muted">Runner-up: {doc.classify_alt.map((a) => a.label).join(", ")}</span>}
+      {open && (
+        <div className="flex flex-wrap items-center gap-2">
+          <SelectBox size="sm" value={type} onChange={(e) => setType(e.target.value)} className="min-w-[240px] flex-1" aria-label="Document type">
+            {(fams || []).map((f) => (
+              <optgroup key={f.id} label={f.label}>
+                {f.types.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </SelectBox>
+          <Input size="sm" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why (kept in the audit trail)" className="min-w-[200px] flex-1" />
+          <Btn kind="dark" size="sm" busy={busy} disabled={!type || type === doc.catalog_type || !reason.trim()} onClick={save}>
+            Save type
+          </Btn>
+        </div>
+      )}
+      {msg && <span className="text-micro text-ramp-2">{msg}</span>}
     </div>
   );
 }

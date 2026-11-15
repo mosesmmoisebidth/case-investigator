@@ -86,7 +86,7 @@ def investigate(case_id: str, emit: Emit, use_trufor: bool = True) -> dict:
     emit({"type": "phase", "phase": "intake", "label": "Intake and classification"})
     r = intake.intake(case)
     flags: list[dict] = list(r.get("flags", []))
-    emit({"type": "intake_done", "documents": [{k: d[k] for k in ("doc_id", "doc_label", "doc_type", "page_count", "file")} for d in r["documents"]], "summary": r["summary"]})
+    emit({"type": "intake_done", "documents": [{k: d.get(k) for k in ("doc_id", "doc_label", "doc_type", "family_label", "needs_review", "page_count", "file")} for d in r["documents"]], "summary": r["summary"]})
 
     pipeline.set_status(case, phase="agent")
     emit({"type": "phase", "phase": "agent", "label": "Lead investigator is planning"})

@@ -170,7 +170,7 @@ function CaseScreen() {
       ) : tab === "graph" ? (
         <GraphView caseId={c.id} docs={c.documents_detail} />
       ) : tab === "documents" ? (
-        <DocViewer key={`${sp.get("doc")}-${sp.get("hl")}-${sp.get("field")}`} caseId={c.id} docs={c.documents_detail} initial={{ doc: sp.get("doc") || undefined, page: sp.get("page") ? Number(sp.get("page")) : undefined, hl, field: sp.get("field") || undefined }} />
+        <DocViewer key={`${sp.get("doc")}-${sp.get("hl")}-${sp.get("field")}`} caseId={c.id} docs={c.documents_detail} onChange={load} initial={{ doc: sp.get("doc") || undefined, page: sp.get("page") ? Number(sp.get("page")) : undefined, hl, field: sp.get("field") || undefined }} />
       ) : tab === "consistency" ? (
         <ConsistencyMatrix caseId={c.id} />
       ) : tab === "timeline" ? (

@@ -1,0 +1,793 @@
+# Document catalog: every kind of document a bank, lender, landlord, insurer or
+# account-opening team may ask for, worldwide.
+#
+# The intake sorter reads every page of every upload, scores it against this
+# catalog and splits a mixed upload into separate documents.
+#
+# Fields per type
+#   id         stable id
+#   label      what the investigator sees
+#   family     one of the families below
+#   pack       the detailed pack in workflows/doctypes/ that reads its fields and
+#              runs its checks; "generic" when no detailed pack exists yet
+#   titles     phrases printed as the document's heading (strongest signal,
+#              weighted higher near the top of the page). Lowercase, no accents.
+#   keywords   phrases printed in the body (supporting signal)
+#   starts     phrases that only appear on the first page of the document
+#   signals    machine patterns: mrz_td3, mrz_td1, micr, iban, card_number, swift
+#   not        phrases that rule this type out
+#   max_pages  how many pages one document of this type normally has
+#   used_for   kyc, account, loan, mortgage, rental, insurance, business, auto
+
+families:
+  identity: {label: Identity, order: 1}
+  address: {label: Proof of address, order: 2}
+  banking: {label: Bank accounts, order: 3}
+  payment: {label: Payment instruments, order: 4}
+  income: {label: Income and employment, order: 5}
+  tax: {label: Tax, order: 6}
+  assets: {label: Savings and investments, order: 7}
+  credit: {label: Loans and credit, order: 8}
+  property: {label: Property and housing, order: 9}
+  business: {label: Business and company, order: 10}
+  commerce: {label: Invoices and receipts, order: 11}
+  insurance: {label: Insurance, order: 12}
+  vehicle: {label: Vehicles, order: 13}
+  civil: {label: Civil and legal records, order: 14}
+  education: {label: Education, order: 15}
+  forms: {label: Applications and forms, order: 16}
+  other: {label: Other, order: 99}
+
+types:
+  # ------------------------------------------------------------------ identity
+  - id: passport
+    label: Passport
+    family: identity
+    pack: passport
+    titles: [passport, passeport, pasaporte, passaporte, reisepass, passaporto, paspoort, paszport]
+    keywords: [nationality, date of birth, place of birth, date of issue, date of expiry, issuing authority, surname, given names, type p, nationalite, nacionalidad, staatsangehorigkeit]
+    signals: [mrz_td3]
+    max_pages: 2
+    used_for: [kyc, account, loan, mortgage, rental, insurance]
+  - id: national_id_card
+    label: National ID card
+    family: identity
+    pack: passport
+    titles: [national identity card, national id card, identity card, national id, carte nationale d'identite, carte d'identite, documento nacional de identidad, cedula de identidad, cedula de ciudadania, carteira de identidade, registro geral, personalausweis, carta d'identita, identiteitskaart, aadhaar, national identification number, mykad, nric, emirates id, ghana card, huduma namba, cni]
+    keywords: [sex, date of birth, nationality, card no, id no, expiry, holder's signature, date of issue, nin]
+    signals: [mrz_td1]
+    not: [driver, driving, licence class, license class]
+    max_pages: 2
+    used_for: [kyc, account, loan, mortgage, rental, insurance]
+  - id: drivers_license
+    label: Driver's license
+    family: identity
+    pack: drivers_license
+    titles: [driver license, drivers license, driver's license, driving licence, driver licence, permis de conduire, licencia de conducir, licencia de conduccion, permiso de conduccion, carteira nacional de habilitacao, fuhrerschein, patente di guida, rijbewijs]
+    keywords: [dl no, class, endorsements, restrictions, dob, donor, eyes, height, organ donor, veteran]
+    max_pages: 2
+    used_for: [kyc, account, loan, mortgage, rental, insurance, auto]
+  - id: state_id_card
+    label: State or non-driver ID card
+    family: identity
+    pack: drivers_license
+    titles: [non-driver identification card, non-driver id, state identification card, state id card, identification card]
+    keywords: [dob, eyes, height, sex, dmv, department of motor vehicles]
+    not: [driver license, drivers license, driver's license, driving licence]
+    max_pages: 2
+    used_for: [kyc, account, loan, rental]
+  - id: residence_permit
+    label: Residence permit or permanent resident card
+    family: identity
+    pack: passport
+    titles: [residence permit, residence card, permanent resident card, biometric residence permit, green card, titre de sejour, carte de resident, permiso de residencia, tarjeta de residencia, autorizacao de residencia, aufenthaltstitel, aufenthaltserlaubnis, permesso di soggiorno, verblijfsvergunning]
+    keywords: [permit type, remarks, valid until, category, uscis, resident since]
+    signals: [mrz_td1]
+    max_pages: 2
+    used_for: [kyc, account, loan, rental]
+  - id: visa
+    label: Visa
+    family: identity
+    pack: passport
+    titles: [entry visa, schengen visa, visa type, visa]
+    keywords: [entries, duration of stay, valid from, valid until, annotations, number of entries]
+    not: [visa debit, visa credit, credit card, debit card, valid thru, card number, statement]
+    max_pages: 1
+    used_for: [kyc, rental]
+  - id: refugee_travel_document
+    label: Refugee or travel document
+    family: identity
+    pack: passport
+    titles: [refugee travel document, convention travel document, travel document, laissez-passer, emergency travel document, titre de voyage]
+    keywords: [holder, valid for all countries except, nationality, date of birth]
+    signals: [mrz_td3]
+    max_pages: 2
+    used_for: [kyc, account]
+  - id: voter_id
+    label: Voter ID card
+    family: identity
+    pack: generic
+    titles: [voter id card, voter's card, voter card, electoral card, voter registration card, carte d'electeur, credencial para votar, titulo de eleitor]
+    keywords: [polling, constituency, electoral, ward, polling station]
+    max_pages: 2
+    used_for: [kyc, account]
+  - id: social_security_card
+    label: Social security card
+    family: identity
+    pack: generic
+    titles: [social security card]
+    keywords: [this number has been established for, social security administration]
+    not: [benefit statement, ssa-1099, monthly benefit]
+    max_pages: 1
+    used_for: [kyc, loan, rental]
+  - id: tax_id_card
+    label: Tax ID card
+    family: identity
+    pack: generic
+    titles: [permanent account number card, permanent account number, pan card, taxpayer identification card, tax identification card, carte fiscale]
+    keywords: [income tax department, father's name, date of birth]
+    max_pages: 2
+    used_for: [kyc, account, loan]
+  - id: military_id
+    label: Military ID
+    family: identity
+    pack: generic
+    titles: [uniformed services identification, armed forces identification, military id, common access card, veteran id card]
+    keywords: [rank, branch, service number, department of defense]
+    max_pages: 2
+    used_for: [kyc, loan]
+
+  # ------------------------------------------------------------------ address
+  - id: utility_bill
+    label: Utility bill
+    family: address
+    pack: utility_bill
+    titles: [electricity bill, electric bill, gas bill, water bill, utility bill, energy bill, power bill, facture d'electricite, facture de gaz, facture d'eau, factura de luz, factura de electricidad, factura de gas, factura de agua, recibo de luz, conta de luz, conta de agua, fatura de energia, stromrechnung, gasrechnung, wasserrechnung, bolletta luce, bolletta gas, energierekening]
+    keywords: [kwh, meter, meter reading, service address, supply address, billing period, amount due, due date, tariff, usage, consumption, therms, gallons, utility, electric, electricity, water, sewer, contador, compteur, zahler]
+    used_for: [kyc, account, loan, mortgage, rental]
+  - id: telecom_bill
+    label: Phone or internet bill
+    family: address
+    pack: utility_bill
+    titles: [phone bill, mobile bill, wireless bill, internet bill, broadband bill, cable bill, telephone bill, cell phone bill, facture de telephone, facture internet, factura de telefono, factura movil, fatura de telefone, fatura de internet, telefonrechnung, mobilfunkrechnung, bolletta telefonica]
+    keywords: [data usage, minutes, plan, monthly charges, wireless, broadband, mobile number, roaming, gb used, text messages, line charges, service address, amount due]
+    not: [kwh, meter reading]
+    used_for: [kyc, account, loan, rental]
+  - id: residence_certificate
+    label: Certificate of residence
+    family: address
+    pack: generic
+    titles: [certificate of residence, proof of residence, residence certificate, attestation de residence, certificat de residence, attestation d'hebergement, certificado de residencia, certificado de empadronamiento, constancia de domicilio, comprovante de residencia, meldebescheinigung, certificato di residenza, uittreksel brp]
+    keywords: [resides at, residing at, municipality, local authority, hereby certify, domicile, chief, village]
+    used_for: [kyc, account, loan, rental]
+
+  # ------------------------------------------------------------------ banking
+  - id: bank_statement
+    label: Bank statement
+    family: banking
+    pack: bank_statement
+    titles: [bank statement, account statement, statement of account, checking account statement, savings account statement, current account statement, monthly statement, e-statement, releve de compte, releve bancaire, extracto bancario, extracto de cuenta, estado de cuenta, extrato bancario, extrato de conta, kontoauszug, estratto conto, rekeningafschrift]
+    keywords: [opening balance, closing balance, beginning balance, ending balance, deposits, withdrawals, statement period, available balance, sort code, routing number, transactions, debits, credits, solde, saldo, account number, iban]
+    starts: [opening balance, beginning balance, previous balance, balance brought forward, statement period, saldo anterior, solde precedent, ancien solde, saldo inicial, alter kontostand]
+    signals: [iban]
+    not: [credit limit, minimum payment due, available credit, portfolio, holdings, principal balance, escrow, m-pesa]
+    used_for: [account, loan, mortgage, rental, business]
+  - id: credit_card_statement
+    label: Credit card statement
+    family: banking
+    pack: generic
+    titles: [credit card statement, card statement, card account statement, credit card account statement]
+    keywords: [credit limit, available credit, minimum payment due, payment due date, new balance, previous balance, purchases, cash advances, interest charged, annual percentage rate, apr, late payment warning]
+    starts: [previous balance, payment due date, minimum payment due]
+    used_for: [loan, mortgage, rental]
+  - id: wallet_statement
+    label: Mobile money or digital wallet statement
+    family: banking
+    pack: generic
+    titles: [m-pesa statement, mpesa statement, mobile money statement, mtn mobile money, airtel money, orange money, wallet statement, paypal statement, paypal account statement, venmo statement, cash app statement, alipay statement]
+    keywords: [transaction id, receipt no, completion time, paid in, withdrawn, paybill, till number, agent, wallet, m-pesa, mpesa]
+    starts: [statement period, opening balance]
+    used_for: [account, loan, rental]
+  - id: bank_reference_letter
+    label: Bank reference or account confirmation letter
+    family: banking
+    pack: generic
+    titles: [bank reference letter, bank reference, account confirmation letter, confirmation of account, account verification letter, proof of account, attestation bancaire, attestation de compte, certificado bancario, certificado de titularidad, bankbestatigung, kontobestatigung]
+    keywords: [to whom it may concern, maintains an account, has been a customer, account holder, in good standing, opened on, since]
+    used_for: [account, loan, rental, business]
+  - id: direct_deposit_form
+    label: Direct deposit or bank details form
+    family: banking
+    pack: generic
+    titles: [direct deposit authorization, direct deposit form, direct deposit enrollment, bank details form, account details form, releve d'identite bancaire, rib]
+    keywords: [routing number, account number, account type, checking, savings, authorize, employer, payroll]
+    max_pages: 1
+    used_for: [account, loan]
+  - id: transfer_confirmation
+    label: Wire or bank transfer confirmation
+    family: banking
+    pack: generic
+    titles: [wire transfer confirmation, transfer confirmation, payment confirmation, swift confirmation, remittance advice, transfer receipt, mt103, comprobante de transferencia, avis de virement, ordre de virement, comprovante de transferencia, uberweisungsbestatigung]
+    keywords: [beneficiary, remitter, ordering customer, swift, bic, reference, value date, amount transferred, beneficiary bank, debit account]
+    signals: [swift, iban]
+    max_pages: 2
+    used_for: [account, loan, mortgage, insurance, business]
+  - id: deposit_slip
+    label: Deposit slip
+    family: banking
+    pack: generic
+    titles: [deposit slip, deposit ticket, paying-in slip, bordereau de remise, bordereau de versement, ficha de deposito]
+    keywords: [currency, coin, checks, total deposit, less cash received, net deposit]
+    max_pages: 1
+    used_for: [account, loan]
+
+  # ------------------------------------------------------------------ payment
+  - id: cheque
+    label: Cheque
+    family: payment
+    pack: cheque
+    titles: [pay to the order of, pay to the order, payez a l'ordre de, paguese a la orden de, pague por este cheque]
+    keywords: [cheque, check, memo, dollars, void after, authorized signature, not negotiable, micr]
+    signals: [micr]
+    not: [cashier's check, cashiers check, official check, bank draft]
+    max_pages: 1
+    used_for: [account, loan, mortgage, rental, insurance]
+  - id: cashiers_check
+    label: Cashier's check or bank draft
+    family: payment
+    pack: cheque
+    titles: [cashier's check, cashiers check, official check, bank draft, banker's draft, demand draft, certified check, teller's check]
+    keywords: [remitter, pay to the order of, drawer, purchaser, void after 90 days]
+    signals: [micr]
+    max_pages: 1
+    used_for: [mortgage, rental, insurance]
+  - id: money_order
+    label: Money order
+    family: payment
+    pack: generic
+    titles: [money order, postal money order, postal order, mandat postal, giro postal]
+    keywords: [purchaser, pay to, money order number, serial number, issuer]
+    max_pages: 1
+    used_for: [rental]
+  - id: payment_card
+    label: Payment card
+    family: payment
+    pack: card
+    titles: [valid thru, good thru, valid through, debit card, credit card]
+    keywords: [visa, mastercard, american express, amex, discover, maestro, debit, credit, member since, cvv, card number]
+    signals: [card_number]
+    not: [statement, minimum payment, transactions, balance, credit limit, invoice]
+    max_pages: 2
+    used_for: [account, insurance]
+
+  # ------------------------------------------------------------------ income
+  - id: pay_stub
+    label: Pay stub
+    family: income
+    pack: pay_stub
+    titles: [pay stub, paystub, pay slip, payslip, earnings statement, statement of earnings, salary slip, salary statement, remuneration statement, wage slip, bulletin de paie, bulletin de salaire, fiche de paie, recibo de nomina, nomina, recibo de sueldo, liquidacion de sueldo, holerite, contracheque, recibo de pagamento, gehaltsabrechnung, lohnabrechnung, entgeltabrechnung, busta paga, cedolino, loonstrook]
+    keywords: [gross pay, net pay, deductions, pay period, pay date, year to date, ytd, federal income tax, social security, medicare, basic salary, employee id, earnings, hours, rate, salaire brut, salaire net, net a payer, sueldo bruto, salario liquido, nettolohn, bruttolohn, auszahlungsbetrag]
+    max_pages: 1
+    used_for: [loan, mortgage, rental]
+  - id: employment_letter
+    label: Employment verification or offer letter
+    family: income
+    pack: employment_letter
+    titles: [offer letter, offer of employment, letter of employment, employment verification, verification of employment, employment confirmation, confirmation of employment, employment certificate, certificate of employment, salary certificate, attestation d'emploi, attestation de travail, attestation employeur, certificado laboral, constancia de trabajo, carta de trabajo, declaracao de vinculo empregaticio, arbeitsbescheinigung, arbeitgeberbescheinigung]
+    keywords: [to whom it may concern, is employed, annual salary, start date, position, job title, full-time, base salary, hereby confirm, date of hire]
+    used_for: [loan, mortgage, rental]
+  - id: employment_contract
+    label: Employment contract
+    family: income
+    pack: generic
+    titles: [employment contract, employment agreement, contract of employment, contrat de travail, contrato de trabajo, contrato de trabalho, contrato individual de trabalho, arbeitsvertrag, contratto di lavoro, arbeidsovereenkomst]
+    keywords: [employer, employee, probation, notice period, termination, remuneration, working hours, governing law, duties]
+    used_for: [loan, mortgage, rental]
+  - id: w2
+    label: W-2 wage and tax statement
+    family: income
+    pack: w2
+    titles: [form w-2, wage and tax statement, w-2]
+    keywords: [wages, tips, other compensation, federal income tax withheld, social security wages, medicare wages, employer identification number, employer's name]
+    used_for: [loan, mortgage, rental]
+  - id: form_1099
+    label: 1099 income form
+    family: income
+    pack: form_1099
+    titles: [form 1099-nec, form 1099-misc, form 1099-int, form 1099-div, form 1099-k, form 1099-r, form 1099-g, form 1099, 1099-nec, 1099-misc, 1099-int, 1099-div, 1099-k, 1099-r, nonemployee compensation, miscellaneous information]
+    keywords: [payer's tin, recipient's tin, payer's name, recipient's name, federal income tax withheld]
+    not: [ssa-1099]
+    used_for: [loan, mortgage, rental]
+  - id: benefits_letter
+    label: Benefits or pension award letter
+    family: income
+    pack: generic
+    titles: [benefit award letter, award letter, notice of award, benefit statement, ssa-1099, social security benefit statement, pension statement, pension award, annuity statement, unemployment benefits, disability benefits, retirement benefit, child benefit, attestation de paiement caf, certificado de pension]
+    keywords: [monthly benefit, entitlement, award, pension, annuity, benefit amount, beneficiary, payment schedule]
+    used_for: [loan, mortgage, rental]
+
+  # ------------------------------------------------------------------ tax
+  - id: tax_return
+    label: Personal tax return
+    family: tax
+    pack: tax_return
+    titles: [form 1040, u.s. individual income tax return, individual income tax return, income tax return, self assessment tax return, sa100, t1 general, declaration de revenus, declaration des revenus, declaracion de la renta, declaracion anual, declaracao de imposto de renda, einkommensteuererklarung, dichiarazione dei redditi, modello 730, aangifte inkomstenbelasting]
+    keywords: [adjusted gross income, taxable income, filing status, refund, amount you owe, total income, tax year, dependents, standard deduction]
+    used_for: [loan, mortgage, rental, business]
+  - id: business_tax_return
+    label: Business tax return
+    family: tax
+    pack: generic
+    titles: [form 1120-s, form 1120, form 1065, schedule k-1, u.s. corporation income tax return, u.s. return of partnership income, corporation tax return, ct600, liasse fiscale]
+    keywords: [gross receipts, ordinary business income, officers compensation, total deductions, taxable income, ein]
+    used_for: [loan, business]
+  - id: tax_assessment
+    label: Tax assessment or notice
+    family: tax
+    pack: generic
+    titles: [notice of assessment, tax assessment, assessment notice, irs notice, notice cp, avis d'imposition, avis d'impot, steuerbescheid, aviso de liquidacion, notificacao de lancamento, aanslag inkomstenbelasting]
+    keywords: [assessed, amount payable, balance due, assessment year, notice date, taxpayer, revenu fiscal de reference]
+    used_for: [loan, mortgage, rental]
+  - id: tax_transcript
+    label: Tax transcript
+    family: tax
+    pack: generic
+    titles: [tax return transcript, wage and income transcript, account transcript, record of account transcript, verification of non-filing]
+    keywords: [irs, transcript, tax period, response date, request date]
+    used_for: [loan, mortgage]
+  - id: tax_clearance
+    label: Tax clearance or compliance certificate
+    family: tax
+    pack: generic
+    titles: [tax clearance certificate, certificate of tax compliance, tax compliance certificate, tax residency certificate, certificate of tax residence, attestation de regularite fiscale, constancia de situacion fiscal, certidao negativa de debitos]
+    keywords: [compliant, clearance, valid until, revenue authority, tax identification number]
+    used_for: [business, loan]
+  - id: tax_registration
+    label: Tax ID registration letter
+    family: tax
+    pack: generic
+    titles: [ein assignment, employer identification number assigned, cp 575, tin certificate, tax registration certificate, vat registration certificate, gst registration certificate, certificate of registration for vat]
+    keywords: [assigned, registration number, effective date, vat number, gstin]
+    used_for: [business, account]
+  - id: taxpayer_form
+    label: W-9 or W-8 taxpayer form
+    family: tax
+    pack: generic
+    titles: [form w-9, request for taxpayer identification number and certification, form w-8ben-e, form w-8ben, certificate of foreign status]
+    keywords: [tin, exempt payee, backup withholding, certification, beneficial owner]
+    used_for: [account, business]
+
+  # ------------------------------------------------------------------ assets
+  - id: brokerage_statement
+    label: Investment or brokerage statement
+    family: assets
+    pack: generic
+    titles: [brokerage statement, investment statement, portfolio statement, investment account statement, statement of holdings, portfolio summary]
+    keywords: [holdings, portfolio, market value, securities, shares, quantity, unrealized gain, dividends, cost basis, mutual fund, etf, asset allocation]
+    starts: [portfolio summary, account summary]
+    used_for: [loan, mortgage, account]
+  - id: retirement_statement
+    label: Retirement or pension fund statement
+    family: assets
+    pack: generic
+    titles: [401(k) statement, 401k statement, ira statement, retirement account statement, pension fund statement, superannuation statement, provident fund statement, retirement plan statement]
+    keywords: [vested balance, employer contributions, employee contributions, vesting, rollover, plan, participant]
+    used_for: [loan, mortgage]
+  - id: crypto_statement
+    label: Crypto exchange statement
+    family: assets
+    pack: generic
+    titles: [crypto statement, cryptocurrency statement, coinbase, binance, kraken]
+    keywords: [btc, eth, usdt, usdc, wallet address, blockchain, transaction hash, crypto]
+    used_for: [loan, account]
+  - id: term_deposit_certificate
+    label: Term deposit certificate
+    family: assets
+    pack: generic
+    titles: [certificate of deposit, fixed deposit receipt, fixed deposit certificate, term deposit certificate, time deposit certificate]
+    keywords: [maturity date, principal, interest rate, tenure, depositor]
+    used_for: [loan, account]
+  - id: gift_letter
+    label: Gift letter
+    family: assets
+    pack: generic
+    titles: [gift letter, letter of gift, gift affidavit]
+    keywords: [donor, recipient, no repayment, relationship, gift amount, not a loan]
+    used_for: [mortgage, loan]
+  - id: proof_of_funds
+    label: Proof of funds letter
+    family: assets
+    pack: generic
+    titles: [proof of funds, evidence of funds, funds verification letter, verification of funds]
+    keywords: [available funds, sufficient funds, verify, balance as of]
+    used_for: [mortgage, rental, account]
+
+  # ------------------------------------------------------------------ credit
+  - id: loan_statement
+    label: Loan statement
+    family: credit
+    pack: generic
+    titles: [loan statement, loan account statement, auto loan statement, student loan statement, personal loan statement, installment loan statement]
+    keywords: [principal balance, interest rate, payment due, past due, outstanding balance, installment, remaining term, payoff, amount financed]
+    used_for: [loan, mortgage]
+  - id: loan_agreement
+    label: Loan agreement or promissory note
+    family: credit
+    pack: generic
+    titles: [loan agreement, promissory note, credit agreement, facility agreement, loan contract, contrat de pret, contrato de prestamo, contrato de emprestimo, darlehensvertrag, contratto di finanziamento]
+    keywords: [borrower, lender, principal amount, interest, repayment, maturity, default, collateral, events of default]
+    used_for: [loan, business]
+  - id: credit_report
+    label: Credit report
+    family: credit
+    pack: generic
+    titles: [credit report, consumer credit report, credit file, credit score report, experian, equifax, transunion, cibil]
+    keywords: [tradelines, inquiries, payment history, accounts in good standing, delinquent, credit score, public records]
+    used_for: [loan, mortgage, rental]
+  - id: payoff_letter
+    label: Payoff letter
+    family: credit
+    pack: generic
+    titles: [payoff letter, payoff statement, payoff quote, settlement figure, redemption statement]
+    keywords: [good through, per diem, total payoff amount, payoff amount]
+    used_for: [loan, mortgage, auto]
+  - id: collection_letter
+    label: Collection or default notice
+    family: credit
+    pack: generic
+    titles: [collection notice, debt collection, final notice, notice of default, past due notice, demand letter, letter before action]
+    keywords: [collection agency, amount owed, debt, validation, creditor, outstanding]
+    used_for: [loan, rental]
+
+  # ------------------------------------------------------------------ property
+  - id: lease_agreement
+    label: Lease or tenancy agreement
+    family: property
+    pack: generic
+    titles: [lease agreement, residential lease, rental agreement, tenancy agreement, assured shorthold tenancy, lease contract, contrat de location, contrat de bail, contrato de arrendamiento, contrato de alquiler, contrato de locacao, mietvertrag, contratto di locazione, huurovereenkomst]
+    keywords: [landlord, tenant, lessor, lessee, monthly rent, security deposit, term of lease, premises, commencement, loyer, renta, aluguel, miete]
+    used_for: [rental, loan, mortgage, kyc]
+  - id: rent_receipt
+    label: Rent receipt
+    family: property
+    pack: generic
+    titles: [rent receipt, rental receipt, quittance de loyer, recibo de alquiler, recibo de arrendamiento, recibo de aluguel, mietquittung]
+    keywords: [received from, rent for the month, landlord, tenant, period]
+    max_pages: 1
+    used_for: [rental, loan]
+  - id: landlord_reference
+    label: Landlord reference
+    family: property
+    pack: generic
+    titles: [landlord reference, rental reference, tenant reference, rental verification, verification of rent]
+    keywords: [tenant, rent paid on time, tenancy, landlord, would rent again]
+    used_for: [rental]
+  - id: mortgage_statement
+    label: Mortgage statement
+    family: property
+    pack: generic
+    titles: [mortgage statement, home loan statement, mortgage account statement, escrow account statement, annual escrow statement]
+    keywords: [principal balance, escrow, interest rate, property address, payment due, late fee, maturity date, loan number]
+    used_for: [mortgage, loan, rental]
+  - id: property_tax_bill
+    label: Property tax bill
+    family: property
+    pack: generic
+    titles: [property tax bill, property tax statement, real estate tax bill, real property tax, council tax bill, council tax, taxe fonciere, impuesto predial, impuesto sobre bienes inmuebles, iptu, grundsteuerbescheid, imu]
+    keywords: [assessed value, parcel, tax year, installment, millage, valuation band, tax rate]
+    used_for: [mortgage, loan, kyc]
+  - id: title_deed
+    label: Title deed or land registry record
+    family: property
+    pack: generic
+    titles: [warranty deed, grant deed, quitclaim deed, title deed, deed of trust, land registry, title register, official copy of register, escritura publica, acte de propriete, acte authentique, grundbuchauszug, matricula do imovel, kadastraal uittreksel]
+    keywords: [grantor, grantee, parcel, legal description, recorded, registry, title number, proprietor]
+    used_for: [mortgage, loan, business]
+  - id: purchase_agreement
+    label: Property purchase agreement
+    family: property
+    pack: generic
+    titles: [purchase agreement, purchase and sale agreement, residential purchase agreement, sales contract, offer to purchase, contract for sale, compromis de vente, contrato de compraventa, contrato de compra e venda, kaufvertrag]
+    keywords: [buyer, seller, purchase price, earnest money, closing date, contingency, property address]
+    used_for: [mortgage]
+  - id: appraisal_report
+    label: Property appraisal or valuation
+    family: property
+    pack: generic
+    titles: [appraisal report, uniform residential appraisal report, valuation report, property valuation, home appraisal]
+    keywords: [appraised value, comparable, subject property, market value, appraiser, gross living area]
+    used_for: [mortgage]
+  - id: closing_statement
+    label: Closing or settlement statement
+    family: property
+    pack: generic
+    titles: [closing disclosure, settlement statement, hud-1, loan estimate, completion statement, alta settlement statement]
+    keywords: [closing costs, cash to close, loan terms, projected payments, settlement agent, seller credits]
+    used_for: [mortgage]
+
+  # ------------------------------------------------------------------ business
+  - id: certificate_of_incorporation
+    label: Certificate of incorporation or registration
+    family: business
+    pack: generic
+    titles: [certificate of incorporation, certificate of formation, certificate of organization, articles of incorporation, articles of organization, company registration certificate, extrait kbis, kbis, handelsregisterauszug, acta constitutiva, escritura de constitucion, certidao de registro, visura camerale, uittreksel kvk]
+    keywords: [incorporated, company number, registration number, registered office, secretary of state, registrar of companies, date of incorporation, siren, cnpj]
+    used_for: [business, account]
+  - id: articles_of_association
+    label: Articles, bylaws or operating agreement
+    family: business
+    pack: generic
+    titles: [articles of association, memorandum of association, memorandum and articles, bylaws, by-laws, operating agreement, partnership agreement, statuts, estatutos sociales, contrato social, gesellschaftsvertrag, statuto]
+    keywords: [shares, directors, members, shareholders, general meeting, objects, capital, managing member]
+    used_for: [business, account]
+  - id: business_license
+    label: Business license or trade registration
+    family: business
+    pack: generic
+    titles: [business license, business licence, trade license, trading licence, business registration certificate, permit to operate, municipal license, licencia de funcionamiento, alvara de funcionamento, gewerbeanmeldung, gewerbeschein]
+    keywords: [licensee, licence number, license number, valid until, business activity, premises]
+    used_for: [business, account]
+  - id: good_standing_certificate
+    label: Certificate of good standing
+    family: business
+    pack: generic
+    titles: [certificate of good standing, certificate of existence, certificate of status, letter of good standing]
+    keywords: [duly incorporated, active, in good standing, secretary of state, registrar]
+    used_for: [business, account]
+  - id: ownership_register
+    label: Beneficial ownership or shareholder register
+    family: business
+    pack: generic
+    titles: [beneficial ownership, ultimate beneficial owner, register of members, shareholder register, share register, register of directors, persons with significant control, cap table, beneficial owner certification]
+    keywords: [shares held, percentage, ownership, control, nominee, class of shares]
+    used_for: [business, account]
+  - id: board_resolution
+    label: Board resolution or minutes
+    family: business
+    pack: generic
+    titles: [board resolution, resolution of the board, written resolution, minutes of the meeting, minutes of a meeting, secretary's certificate, certificate of incumbency, incumbency certificate]
+    keywords: [resolved, directors, authorized signatory, meeting, quorum, chairman]
+    used_for: [business, account]
+  - id: financial_statements
+    label: Financial statements (balance sheet, profit and loss)
+    family: business
+    pack: generic
+    titles: [balance sheet, statement of financial position, income statement, profit and loss statement, profit and loss, profit & loss, statement of cash flows, cash flow statement, financial statements, audited financial statements, annual report, management accounts, bilan, compte de resultat, estado de resultados, balance general, estado de situacion financiera, demonstracao de resultados, bilanz, gewinn- und verlustrechnung, conto economico]
+    keywords: [total assets, total liabilities, equity, revenue, cost of goods sold, gross profit, net income, operating expenses, retained earnings, ebitda, current assets, accounts receivable]
+    used_for: [business, loan, mortgage]
+
+  # ------------------------------------------------------------------ commerce
+  - id: invoice
+    label: Invoice
+    family: commerce
+    pack: invoice
+    titles: [tax invoice, commercial invoice, invoice, facture, factura, fatura, rechnung, fattura, nota fiscal, factuur]
+    keywords: [invoice number, invoice no, invoice date, bill to, ship to, subtotal, total due, due date, remit to, vat, qty, quantity, unit price, payment terms]
+    not: [kwh, meter reading, data usage, pro forma, proforma, estimate, quotation]
+    used_for: [insurance, business, loan]
+  - id: receipt
+    label: Receipt
+    family: commerce
+    pack: receipt
+    titles: [sales receipt, payment receipt, cash receipt, receipt, recibo, recu, quittung, kassenbon, ricevuta, scontrino]
+    keywords: [thank you, paid, change, cashier, total, card ending, auth code, terminal, transaction]
+    not: [rent receipt, transfer receipt, fixed deposit receipt]
+    max_pages: 1
+    used_for: [insurance, business]
+  - id: purchase_order
+    label: Purchase order
+    family: commerce
+    pack: generic
+    titles: [purchase order, bon de commande, orden de compra, pedido de compra, bestellung, ordine di acquisto]
+    keywords: [vendor, ship to, delivery date, qty, unit price, po number, buyer]
+    used_for: [business]
+  - id: quote
+    label: Quote or estimate
+    family: commerce
+    pack: generic
+    titles: [quotation, quote, estimate, pro forma invoice, proforma invoice, devis, presupuesto, cotizacion, orcamento, angebot, preventivo]
+    keywords: [valid for, estimate number, quote number, terms, acceptance]
+    not: [repair estimate, damage estimate, loan estimate]
+    used_for: [insurance, business]
+
+  # ------------------------------------------------------------------ insurance
+  - id: insurance_policy
+    label: Insurance policy or declarations page
+    family: insurance
+    pack: generic
+    titles: [declarations page, policy declarations, insurance policy, policy schedule, certificate of insurance, evidence of insurance, homeowners policy, auto policy, renters insurance, life insurance policy, police d'assurance, attestation d'assurance, poliza de seguro, apolice de seguro, versicherungsschein, versicherungspolice, polizza assicurativa]
+    keywords: [policyholder, named insured, premium, coverage, deductible, policy period, effective date, limits of liability, insurer, beneficiary, policy number]
+    used_for: [insurance, mortgage, auto, rental]
+  - id: insurance_card
+    label: Insurance card
+    family: insurance
+    pack: generic
+    titles: [insurance card, member id card, health insurance card, proof of insurance card, insurance identification card, carte vitale, tarjeta sanitaria, cartao do sus, versichertenkarte]
+    keywords: [member id, group number, rx bin, rx pcn, copay, plan, payer id, subscriber]
+    max_pages: 2
+    used_for: [insurance, kyc]
+  - id: insurance_claim_form
+    label: Insurance claim form
+    family: insurance
+    pack: generic
+    titles: [claim form, notice of claim, first notice of loss, proof of loss, sworn statement in proof of loss, claim report, declaration de sinistre, formulario de reclamacion, aviso de sinistro, schadenmeldung]
+    keywords: [claimant, date of loss, cause of loss, policy number, description of loss, amount claimed, loss location]
+    used_for: [insurance]
+  - id: repair_estimate
+    label: Repair estimate
+    family: insurance
+    pack: generic
+    titles: [repair estimate, estimate of repair, estimate of record, damage estimate, auto body estimate, repair order, preliminary estimate]
+    keywords: [labor, parts, paint, refinish, vin, deductible, supplement, body labor, sublet]
+    used_for: [insurance, auto]
+  - id: medical_bill
+    label: Medical bill or explanation of benefits
+    family: insurance
+    pack: generic
+    titles: [medical bill, hospital bill, patient statement, statement of services, explanation of benefits, itemized bill, itemized statement, invoice for services rendered]
+    keywords: [patient, provider, cpt, diagnosis, date of service, insurance paid, patient responsibility, procedure, amount billed, allowed amount]
+    used_for: [insurance]
+
+  # ------------------------------------------------------------------ vehicle
+  - id: vehicle_registration
+    label: Vehicle registration
+    family: vehicle
+    pack: generic
+    titles: [vehicle registration, registration certificate, registration card, v5c, vehicle log book, carte grise, certificat d'immatriculation, tarjeta de circulacion, permiso de circulacion, crlv, zulassungsbescheinigung, libretto di circolazione, kentekenbewijs]
+    keywords: [vin, plate, license plate, make, model, year, registered owner, odometer, registration number, chassis]
+    used_for: [auto, insurance, loan]
+  - id: vehicle_title
+    label: Vehicle title
+    family: vehicle
+    pack: generic
+    titles: [certificate of title for a vehicle, vehicle title, motor vehicle title, certificate of title, title certificate]
+    keywords: [vin, lienholder, odometer, owner, transfer, make, body type]
+    used_for: [auto, loan]
+  - id: bill_of_sale
+    label: Bill of sale
+    family: vehicle
+    pack: generic
+    titles: [bill of sale, vehicle bill of sale, motor vehicle bill of sale]
+    keywords: [seller, buyer, vin, purchase price, as is, odometer]
+    used_for: [auto, loan, insurance]
+
+  # ------------------------------------------------------------------ civil and legal
+  - id: birth_certificate
+    label: Birth certificate
+    family: civil
+    pack: generic
+    titles: [birth certificate, certificate of birth, certificate of live birth, acte de naissance, extrait d'acte de naissance, partida de nacimiento, acta de nacimiento, certidao de nascimento, geburtsurkunde, certificato di nascita, geboorteakte]
+    keywords: [place of birth, father, mother, registrar, registration district, date of registration, name of child]
+    used_for: [kyc, insurance]
+  - id: marriage_certificate
+    label: Marriage certificate
+    family: civil
+    pack: generic
+    titles: [marriage certificate, certificate of marriage, marriage license, acte de mariage, acta de matrimonio, certidao de casamento, heiratsurkunde, certificato di matrimonio]
+    keywords: [bride, groom, spouse, officiant, solemnized, witnesses]
+    used_for: [kyc, mortgage, insurance]
+  - id: divorce_decree
+    label: Divorce decree
+    family: civil
+    pack: generic
+    titles: [divorce decree, decree of divorce, judgment of dissolution, final decree of divorce, decree absolute, jugement de divorce, sentencia de divorcio]
+    keywords: [petitioner, respondent, dissolution, custody, alimony, child support, spousal support]
+    used_for: [mortgage, loan]
+  - id: death_certificate
+    label: Death certificate
+    family: civil
+    pack: generic
+    titles: [death certificate, certificate of death, acte de deces, acta de defuncion, certidao de obito, sterbeurkunde, certificato di morte]
+    keywords: [deceased, decedent, cause of death, date of death, informant, place of death]
+    used_for: [insurance]
+  - id: court_order
+    label: Court order or judgment
+    family: civil
+    pack: generic
+    titles: [court order, order of the court, judgment, judgement, writ of, garnishment order, summons, subpoena]
+    keywords: [plaintiff, defendant, case no, court, hereby ordered, judge, docket]
+    used_for: [loan, mortgage, insurance]
+  - id: power_of_attorney
+    label: Power of attorney
+    family: civil
+    pack: generic
+    titles: [power of attorney, durable power of attorney, procuration, procuracion, poder notarial, procuracao, vollmacht, procura]
+    keywords: [principal, attorney-in-fact, agent, hereby appoint, notary, acknowledged]
+    used_for: [account, mortgage, loan]
+  - id: affidavit
+    label: Affidavit or sworn declaration
+    family: civil
+    pack: generic
+    titles: [affidavit, sworn statement, statutory declaration, declaration under penalty of perjury, attestation sur l'honneur, declaracion jurada, declaracao sob compromisso]
+    keywords: [sworn, notary public, subscribed and sworn, deponent, affiant, solemnly declare]
+    used_for: [kyc, insurance, loan]
+  - id: police_report
+    label: Police or incident report
+    family: civil
+    pack: generic
+    titles: [police report, incident report, accident report, crime report, traffic collision report, proces-verbal, denuncia, boletim de ocorrencia, polizeibericht]
+    keywords: [officer, badge, incident, location, reporting party, offense, narrative, report number, case number]
+    used_for: [insurance]
+  - id: bankruptcy_record
+    label: Bankruptcy record
+    family: civil
+    pack: generic
+    titles: [discharge of debtor, order of discharge, bankruptcy petition, notice of bankruptcy, chapter 7, chapter 13, insolvency order]
+    keywords: [debtor, trustee, bankruptcy court, creditors, discharge]
+    used_for: [loan, mortgage]
+  - id: probate_document
+    label: Probate or estate document
+    family: civil
+    pack: generic
+    titles: [letters of administration, letters testamentary, grant of probate, last will and testament, certificate of inheritance, acte de notoriete, declaratoria de herederos, erbschein]
+    keywords: [executor, estate, deceased, beneficiary, testator, heirs]
+    used_for: [account, insurance, mortgage]
+
+  # ------------------------------------------------------------------ education
+  - id: enrollment_letter
+    label: Enrollment or student status letter
+    family: education
+    pack: generic
+    titles: [enrollment verification, enrolment verification, proof of enrollment, certificate of enrollment, enrolment certificate, student status letter, attestation de scolarite, certificat de scolarite, certificado de matricula, declaracao de matricula, immatrikulationsbescheinigung]
+    keywords: [enrolled, academic year, semester, registrar, student id, full-time]
+    used_for: [rental, loan, account]
+  - id: transcript_diploma
+    label: Transcript or diploma
+    family: education
+    pack: generic
+    titles: [academic transcript, official transcript, diploma, degree certificate, certificate of completion]
+    keywords: [gpa, credits, course, registrar, conferred, grade]
+    used_for: [loan]
+
+  # ------------------------------------------------------------------ forms
+  - id: loan_application
+    label: Loan application form
+    family: forms
+    pack: generic
+    titles: [uniform residential loan application, loan application, credit application, application for credit, mortgage application, form 1003, demande de pret, solicitud de credito, kreditantrag]
+    keywords: [borrower information, co-borrower, employment information, assets and liabilities, declarations, applicant signature]
+    used_for: [loan, mortgage, auto]
+  - id: rental_application
+    label: Rental application form
+    family: forms
+    pack: generic
+    titles: [rental application, tenant application, application to rent, lease application, dossier de location]
+    keywords: [applicant, current landlord, monthly income, references, move-in date, desired move]
+    used_for: [rental]
+  - id: account_opening_form
+    label: Account opening or KYC form
+    family: forms
+    pack: generic
+    titles: [account opening form, application to open an account, new account application, customer information form, know your customer, kyc form, customer due diligence]
+    keywords: [account type, source of funds, occupation, politically exposed, nominee, expected activity]
+    used_for: [account, kyc, business]
+  - id: authorization_form
+    label: Tax or records authorization form
+    family: forms
+    pack: generic
+    titles: [form 4506-c, form 4506-t, request for transcript of tax return, form 8821, authorization to release information, borrower's certification and authorization]
+    keywords: [taxpayer, authorize, signature, transcript, release]
+    used_for: [loan, mortgage]
+  - id: verification_form
+    label: Verification of employment or deposit form
+    family: forms
+    pack: generic
+    titles: [request for verification of employment, request for verification of deposit, verification of deposit, form 1005, form 1006]
+    keywords: [employer, verifier, account, balance, employee, date of employment]
+    used_for: [loan, mortgage]
+  - id: source_of_funds_declaration
+    label: Source of funds or wealth declaration
+    family: forms
+    pack: generic
+    titles: [source of funds declaration, source of wealth declaration, declaration of source of funds, source of funds, source of wealth]
+    keywords: [origin of funds, funds derived from, wealth, declare, inheritance, sale of property]
+    used_for: [account, kyc, mortgage, business]
+
+  # ------------------------------------------------------------------ other
+  - id: generic
+    label: Other financial document
+    family: other
+    pack: generic
+    titles: []
+    keywords: []
+    used_for: []

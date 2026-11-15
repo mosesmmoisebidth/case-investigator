@@ -17,7 +17,7 @@ from pathlib import Path
 import pymupdf
 from PIL import Image
 
-from . import doctypes, textlayer
+from . import catalog, doctypes, textlayer
 from .core import audit, read_json, rel, result, sha256_file, write_json
 
 IMG_EXT = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
@@ -25,6 +25,31 @@ IMG_EXT = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
 def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")[:40] or "doc"
+
+
+def _typed(catalog_type: str) -> dict:
+    """Manifest fields for a catalog type. doc_type stays the detailed pack id
+    (what the engines key their checks on); catalog_type is the specific kind."""
+    t = catalog.get(catalog_type)
+    return {"doc_type": t["pack"], "catalog_type": t["id"], "doc_label": t["label"], "family": t["family"], "family_label": t["family_label"]}
+
+
+def reclassify(case: Path, doc_id: str, catalog_type: str, reason: str, by: str) -> dict:
+    """Set a document's type by hand. Kept in corrections/doc_types.json (not wiped by a re-run) so a re-run keeps it."""
+    if catalog_type not in catalog.load()["types"]:
+        raise ValueError(f"unknown document type {catalog_type}")
+    man = read_json(case, "intake/manifest.json", {"documents": []})
+    doc = next((d for d in man["documents"] if d["doc_id"] == doc_id), None)
+    if doc is None:
+        raise KeyError(doc_id)
+    before = doc.get("catalog_type") or doc.get("doc_type")
+    doc.update(_typed(catalog_type), classify_conf=1.0, classify_why=[f"set by {by}: {reason}".strip(": ")], needs_review=False)
+    write_json(case, "intake/manifest.json", man)
+    ov = read_json(case, "corrections/doc_types.json", {})
+    ov[doc_id] = {"catalog_type": catalog_type, "reason": reason, "by": by}
+    write_json(case, "corrections/doc_types.json", ov)
+    audit(case, by, "reclassify", {"doc": doc_id, "from": before, "to": catalog_type, "reason": reason}, "ok")
+    return doc
 
 
 def intake(case: Path) -> dict:
@@ -55,43 +80,54 @@ def intake(case: Path) -> dict:
             kind = "image"
         else:
             continue
-        # classify page by page and split where the type changes
-        groups: list[dict] = []
-        for pg in pages:
-            txt = textlayer.page_text(pg["words"])
-            dtype, conf, _ = doctypes.classify(txt, f.name)
-            if groups and (groups[-1]["doc_type"] == dtype or conf < 0.15):
-                groups[-1]["pages"].append(pg)
-            else:
-                groups.append({"doc_type": dtype, "conf": conf, "pages": [pg]})
+        # sort the pages against the document catalog and split mixed files
+        groups = catalog.sort_pages(pages, f.name)
         for gi, g in enumerate(groups):
             doc_id = _slug(f.stem) + (f"_{gi + 1}" if len(groups) > 1 else "")
-            label = doctypes.packs()[g["doc_type"]]["label"]
+            sorting = [{"page": p["page"], **{k: p["_sort"][k] for k in ("type", "conf", "why", "page_of")}} for p in g["pages"]]
+            for p in g["pages"]:
+                p.pop("_sort", None)
             docs.append(
                 {
                     "doc_id": doc_id,
                     "file": f.name,
                     "sha256": h,
                     "kind": kind,
-                    "doc_type": g["doc_type"],
-                    "doc_label": label,
+                    **_typed(g["type"]),
                     "classify_conf": g["conf"],
+                    "classify_why": g["why"],
+                    "classify_alt": g["alt"],
+                    "split_reason": g["split_reason"] if len(groups) > 1 else None,
+                    "needs_review": g["type"] == "generic" or g["conf"] < catalog.SURE,
                     "page_count": len(g["pages"]),
                     "pages": [{k: v for k, v in p.items() if k in ("page", "png", "w", "h", "source")} for p in g["pages"]],
+                    "page_sorting": sorting,
                     "duplicate_of": dup_of,
                 }
             )
             write_json(case, f"intake/text/{doc_id}.json", {"pages": g["pages"]})
+    # an investigator's (or the agent's) correction survives a re-run
+    overrides = read_json(case, "corrections/doc_types.json", {})
+    for d in docs:
+        o = overrides.get(d["doc_id"])
+        if o and o.get("catalog_type") in catalog.load()["types"]:
+            d.update(_typed(o["catalog_type"]), classify_conf=1.0, classify_why=[f"set by {o.get('by', 'investigator')}: {o.get('reason', '')}".strip(": ")], needs_review=False)
     manifest = {"documents": docs}
     path = write_json(case, "intake/manifest.json", manifest)
-    audit(case, "engine:intake", "intake", [d["file"] for d in docs], {"documents": len(docs)})
-    summ = ", ".join(f"{d['doc_id']} ({d['doc_label']}, {d['page_count']}p)" for d in docs)
+    audit(case, "engine:intake", "intake", [d["file"] for d in docs], {"documents": len(docs), "families": sorted({d["family"] for d in docs})})
+    by_fam: dict[str, list[str]] = {}
+    for d in docs:
+        by_fam.setdefault(d["family_label"], []).append(d["doc_label"])
+    summ = f"{len(docs)} document{'s' if len(docs) != 1 else ''} from {len(files)} file{'s' if len(files) != 1 else ''}: " + "; ".join(f"{k}: {len(v)} ({', '.join(sorted(set(v)))})" for k, v in by_fam.items())
+    unsure = [d["doc_id"] for d in docs if d["needs_review"]]
+    if unsure:
+        summ += f". Needs a look: {', '.join(unsure)}"
     flags = [
         {"check": "duplicate_file", "claim": f"{d['file']} is an exact duplicate of {d['duplicate_of']}", "severity": "low", "doc": d["doc_id"], "layer": "intake", "deterministic": True, "evidence": [path], "values": {}}
         for d in docs
         if d["duplicate_of"]
     ]
-    return result([path], f"{len(docs)} documents: {summ}", flags, documents=docs)
+    return result([path], summ, flags, documents=docs)
 
 
 def doc_meta(case: Path, doc_id: str) -> dict:

@@ -4,6 +4,7 @@ Case type: {case_type}. Context from the investigator: "{context}".
 Documents uploaded: {documents}
 
 How to work:
+0. The intake sorter has already split the uploads into separate documents (one file can hold several) and typed each one against the document catalog. Call list_documents. For any document marked needs_review, or whose type looks wrong for its pages, have an analyst look at it; if the type is wrong, call reclassify_document with the right catalog type and the reason, then plan on the corrected types.
 1. First write your investigation plan with write_todos: one todo per document ("Analyse <doc_id>"), then "Build the relationship graph", "Follow up on every red and amber link", "Screen every name", "Close open leads".
    Let the documents drive the plan: a passport means MRZ checks, a cheque means routing checks, pay stubs plus statements mean income reconciliation.
 2. Analyse the documents by delegating ONE task per document to the document-analyst sub-agent (send several task calls at once so they run in parallel). Give each task the doc_id and its type.
