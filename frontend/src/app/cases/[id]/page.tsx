@@ -181,13 +181,13 @@ function CaseScreen() {
       ) : tab === "graph" ? (
         <GraphView caseId={c.id} docs={c.documents_detail} />
       ) : tab === "documents" ? (
-        <DocViewer key={`${sp.get("doc")}-${sp.get("hl")}-${sp.get("field")}`} caseId={c.id} docs={c.documents_detail} onChange={load} initial={{ doc: sp.get("doc") || undefined, page: sp.get("page") ? Number(sp.get("page")) : undefined, hl, field: sp.get("field") || undefined }} />
+        <DocViewer key={`${sp.get("doc")}-${sp.get("hl")}-${sp.get("field")}-${sp.get("from")}`} caseId={c.id} docs={c.documents_detail} onChange={load} initial={{ doc: sp.get("doc") || undefined, page: sp.get("page") ? Number(sp.get("page")) : undefined, hl, field: sp.get("field") || undefined, from: sp.get("from") || undefined }} />
       ) : tab === "consistency" ? (
         <ConsistencyMatrix caseId={c.id} />
       ) : tab === "timeline" ? (
         <Timeline caseId={c.id} />
       ) : tab === "findings" ? (
-        <Findings caseId={c.id} locked={c.locked} onScore={() => load()} />
+        <Findings key={sp.get("f") || "findings"} caseId={c.id} locked={c.locked} onScore={() => load()} focus={sp.get("f") || undefined} />
       ) : (
         <Report c={c} />
       )}

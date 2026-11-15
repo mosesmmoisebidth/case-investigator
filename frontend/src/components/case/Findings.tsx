@@ -43,7 +43,7 @@ function layerOf(line: string): string | null {
 
 type Filter = "review" | "accepted" | "rejected";
 
-export function Findings({ caseId, locked, onScore }: { caseId: string; locked: boolean; onScore: (s: Score) => void }) {
+export function Findings({ caseId, locked, onScore, focus }: { caseId: string; locked: boolean; onScore: (s: Score) => void; focus?: string }) {
   const router = useRouter();
   const [F, setF] = useState<Finding[] | null>(null);
   const [sel, setSel] = useState<string | null>(null);
@@ -59,9 +59,11 @@ export function Findings({ caseId, locked, onScore }: { caseId: string; locked: 
   useEffect(() => {
     api.findings(caseId).then((r) => {
       setF(r.findings);
-      setSel((s) => s || r.findings.find((f) => f.status !== "lead")?.id || r.findings[0]?.id || null);
+      const want = focus && r.findings.find((f) => f.id === focus);
+      if (want && want.status === "lead") setShowLeads(true);
+      setSel((s) => s || (want ? want.id : null) || r.findings.find((f) => f.status !== "lead")?.id || r.findings[0]?.id || null);
     });
-  }, [caseId]);
+  }, [caseId, focus]);
 
   if (!F) return <Loading label="Loading findings" />;
   const counted = F.filter((x) => x.status !== "lead");
