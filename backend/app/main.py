@@ -76,12 +76,14 @@ def _summary(case: Path) -> dict:
     man = read_json(case, "intake/manifest.json", {"documents": []})["documents"]
     dec = read_json(case, "findings/decision.json", None)
     n_inputs = len([p for p in (case / "input").iterdir()]) if (case / "input").exists() else 0
+    graph = read_json(case, "graph/graph.json", {}) or {}
     return {
+        "links": graph.get("counts"),
         "id": meta.get("id"),
         "type": meta.get("type"),
         "type_label": workflow.load(meta.get("type", "general"))["label"],
         "context": meta.get("context"),
-        "applicant": (read_json(case, "graph/graph.json", {}) or {}).get("applicant") or meta.get("applicant"),
+        "applicant": graph.get("applicant") or meta.get("applicant"),
         "created": meta.get("created"),
         "assignee": meta.get("assignee", "You"),
         "state": st.get("state", "created"),
@@ -92,6 +94,7 @@ def _summary(case: Path) -> dict:
         "risk_score": sc.get("risk_score"),
         "recommended_outcome": sc.get("recommended_outcome"),
         "final_outcome": (dec or {}).get("final_outcome"),
+        "closed_at": (dec or {}).get("signed_at"),
         "locked": bool(dec),
         "findings": st.get("findings"),
     }

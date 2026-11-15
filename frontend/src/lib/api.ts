@@ -22,6 +22,8 @@ export interface CaseSummary {
   final_outcome?: string;
   locked: boolean;
   findings?: number;
+  links?: { verified: number; conflict: number; missing: number; unverifiable: number } | null;
+  closed_at?: number | null;
 }
 
 export interface DocDetail {
